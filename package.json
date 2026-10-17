@@ -11,11 +11,14 @@
     "build": "tsc --noEmit && vite build --config web/vite.config.ts",
     "build:app": "npm run build && node scripts/release.mjs --current",
     "build:all": "npm run build && node scripts/release.mjs",
+    "build:studio": "npm run build && node scripts/studio-build.mjs",
+    "build:studio:all": "npm run build && node scripts/studio-build.mjs --all",
     "start": "node scripts/go.mjs run ./cmd/lanplay",
     "check": "tsc --noEmit && node scripts/go.mjs vet ./...",
     "test": "node scripts/go.mjs test ./...",
     "test:media": "node scripts/go.mjs test -count=1 -v ./internal/media",
-    "test:e2e": "node scripts/e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:native": "node scripts/native-e2e.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",

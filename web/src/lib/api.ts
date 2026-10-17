@@ -16,7 +16,7 @@ export async function api<T>(path: string, init: RequestInit = {}, secret?: stri
   if (init.body) headers.set('Content-Type', 'application/json');
   if (secret) headers.set('Authorization', `Bearer ${secret}`);
   const response = await fetch(`/api${path}`, { ...init, headers, signal: init.signal ?? AbortSignal.timeout(20000) });
-  if (!response.ok) { const body = await response.json().catch(() => ({})); throw new APIError(body.error ?? 'unknown', response.status); }
+  if (!response.ok) { const body = await response.json().catch(() => ({})); if (body.error === 'native_capture_failed' && typeof body.message === 'string') throw new Error(body.message); throw new APIError(body.error ?? 'unknown', response.status); }
   return response.status === 204 ? undefined as T : response.json();
 }
 export const channelPath = (nick: string) => `/channels/${encodeURIComponent(nick)}`;
