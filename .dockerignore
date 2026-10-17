@@ -1,0 +1,11 @@
+.git
+.tools
+node_modules
+stable
+data
+build
+.certs
+.runtime
+.npm-cache
+test-results
+*.pem

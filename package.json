@@ -1,0 +1,34 @@
+{
+  "name": "lanplay",
+  "version": "2.0.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted streaming with permanent channels, React and Go",
+  "engines": { "node": ">=20.11" },
+  "scripts": {
+    "dev": "vite --config web/vite.config.ts",
+    "dev:server": "node scripts/go.mjs run ./cmd/lanplay",
+    "build": "tsc --noEmit && vite build --config web/vite.config.ts",
+    "build:app": "npm run build && node scripts/release.mjs --current",
+    "build:all": "npm run build && node scripts/release.mjs",
+    "start": "node scripts/go.mjs run ./cmd/lanplay",
+    "check": "tsc --noEmit && node scripts/go.mjs vet ./...",
+    "test": "node scripts/go.mjs test ./...",
+    "test:media": "node scripts/go.mjs test -count=1 -v ./internal/media",
+    "test:e2e": "node scripts/e2e.mjs"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0"
+  }
+}
