@@ -22,7 +22,7 @@ type Session struct {
 	tracks    map[webrtc.RTPCodecType]*webrtc.TrackLocalStaticRTP
 	videoSSRC uint32
 	viewers   map[string]*webrtc.PeerConnection
-	stopPLI   chan struct{}
+	keyframes *keyframeRequester
 }
 
 type Status struct {
@@ -32,15 +32,27 @@ type Status struct {
 }
 
 type Hub struct {
-	mu         sync.Mutex
-	api        *webrtc.API
-	config     webrtc.Configuration
-	sessions   map[string]*Session
-	maxViewers int
+	mu             sync.Mutex
+	api            *webrtc.API
+	config         webrtc.Configuration
+	sessions       map[string]*Session
+	maxViewers     int
+	viewerSettings webrtc.SettingEngine
 }
 
-func New(api *webrtc.API, config webrtc.Configuration, maxViewers int) *Hub {
-	return &Hub{api: api, config: config, sessions: map[string]*Session{}, maxViewers: maxViewers}
+type Option func(*Hub)
+
+// WithViewerSettings applies the server's ICE/UDP settings to outgoing peers.
+func WithViewerSettings(settings webrtc.SettingEngine) Option {
+	return func(h *Hub) { h.viewerSettings = settings }
+}
+
+func New(api *webrtc.API, config webrtc.Configuration, maxViewers int, options ...Option) *Hub {
+	h := &Hub{api: api, config: config, sessions: map[string]*Session{}, maxViewers: maxViewers}
+	for _, option := range options {
+		option(h)
+	}
+	return h
 }
 
 func (h *Hub) Status(nick string) Status {
@@ -62,7 +74,7 @@ func (h *Hub) Stop(nick, id string) {
 		return
 	}
 	delete(h.sessions, nick)
-	close(s.stopPLI)
+	s.keyframes.close()
 	peers := []*webrtc.PeerConnection{s.PC}
 	for _, p := range s.viewers {
 		peers = append(peers, p)
@@ -110,9 +122,13 @@ func answer(ctx context.Context, pc *webrtc.PeerConnection, offer webrtc.Session
 	}
 }
 
-func watchPeer(pc *webrtc.PeerConnection, cleanup func()) {
+func watchPeer(pc *webrtc.PeerConnection, cleanup func(), connected ...func()) {
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		switch state {
+		case webrtc.PeerConnectionStateConnected:
+			for _, ready := range connected {
+				ready()
+			}
 		case webrtc.PeerConnectionStateFailed, webrtc.PeerConnectionStateClosed:
 			go cleanup()
 		case webrtc.PeerConnectionStateDisconnected:
@@ -136,7 +152,8 @@ func (h *Hub) Publish(ctx context.Context, nick, id string, audio bool, offer we
 	if err != nil {
 		return nil, err
 	}
-	s := &Session{ID: id, PC: pc, audio: audio, tracks: map[webrtc.RTPCodecType]*webrtc.TrackLocalStaticRTP{}, viewers: map[string]*webrtc.PeerConnection{}, stopPLI: make(chan struct{})}
+	s := &Session{ID: id, PC: pc, audio: audio, tracks: map[webrtc.RTPCodecType]*webrtc.TrackLocalStaticRTP{}, viewers: map[string]*webrtc.PeerConnection{}}
+	s.keyframes = &keyframeRequester{interval: time.Second, send: func() { h.sendKeyframe(nick, s) }}
 	h.mu.Lock()
 	if h.sessions[nick] != nil || len(h.sessions) >= 32 {
 		h.mu.Unlock()
@@ -168,8 +185,12 @@ func (h *Hub) Publish(ctx context.Context, nick, id string, audio bool, offer we
 				h.Stop(nick, id)
 				return
 			}
-			// WriteRTP fans out to the bound senders. Individual broken viewers
-			// must not interrupt other subscribers or the publisher.
+			// RTP extensions belong to the publisher/server hop. Each viewer
+			// negotiates its own IDs and gets fresh transport feedback headers.
+			packet.Extension = false
+			packet.ExtensionProfile = 0
+			packet.Extensions = nil
+			// Each bound sender enqueues to its own nonblocking, bounded pacer.
 			_ = local.WriteRTP(packet)
 		}
 	})
@@ -178,25 +199,13 @@ func (h *Hub) Publish(ctx context.Context, nick, id string, audio bool, offer we
 		h.Stop(nick, id)
 		return nil, err
 	}
-	go func() {
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-s.stopPLI:
-				return
-			case <-ticker.C:
-				h.keyframe(nick, s)
-			}
-		}
-	}()
 	return sdp, nil
 }
 
-func (h *Hub) keyframe(nick string, s *Session) {
+func (h *Hub) sendKeyframe(nick string, s *Session) {
 	h.mu.Lock()
 	ssrc := s.videoSSRC
-	active := h.sessions[nick] == s
+	active := h.sessions[nick] == s && len(s.viewers) > 0
 	h.mu.Unlock()
 	if active && ssrc != 0 {
 		_ = s.PC.WriteRTCP([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: ssrc}})
@@ -218,7 +227,7 @@ func (h *Hub) Leave(nick, streamID, viewerID string) {
 }
 
 func (h *Hub) Subscribe(ctx context.Context, nick, viewerID string, offer webrtc.SessionDescription) (*webrtc.SessionDescription, string, error) {
-	pc, err := h.api.NewPeerConnection(h.config)
+	pc, pacer, err := newViewerPeer(h.viewerSettings, h.config)
 	if err != nil {
 		return nil, "", err
 	}
@@ -241,7 +250,7 @@ func (h *Hub) Subscribe(ctx context.Context, nick, viewerID string, offer webrtc
 	s.viewers[viewerID] = pc
 	h.mu.Unlock()
 	cleanup := func() { h.Leave(nick, s.ID, viewerID) }
-	watchPeer(pc, cleanup)
+	watchPeer(pc, cleanup, func() { pacer.start(); s.keyframes.request() })
 	for _, track := range tracks {
 		sender, addErr := pc.AddTrack(track)
 		if addErr != nil {
@@ -257,7 +266,7 @@ func (h *Hub) Subscribe(ctx context.Context, nick, viewerID string, offer webrtc
 				for _, packet := range packets {
 					switch packet.(type) {
 					case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
-						h.keyframe(nick, s)
+						s.keyframes.request()
 					}
 				}
 			}
@@ -268,6 +277,5 @@ func (h *Hub) Subscribe(ctx context.Context, nick, viewerID string, offer webrtc
 		cleanup()
 		return nil, "", err
 	}
-	h.keyframe(nick, s)
 	return sdp, s.ID, nil
 }

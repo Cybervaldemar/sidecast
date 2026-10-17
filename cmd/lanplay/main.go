@@ -68,7 +68,7 @@ func main() {
 	if err != nil {
 		log.Fatal("open channel storage: ", err)
 	}
-	hub := media.New(webrtc.NewAPI(webrtc.WithSettingEngine(settings)), webrtc.Configuration{ICEServers: iceServers}, *maxViewers)
+	hub := media.New(webrtc.NewAPI(webrtc.WithSettingEngine(settings)), webrtc.Configuration{ICEServers: iceServers}, *maxViewers, media.WithViewerSettings(settings))
 	defer hub.Close()
 	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers, Addresses: httpapi.Addresses()}, web.Assets())
 	server := &http.Server{Addr: *listen, Handler: app, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
