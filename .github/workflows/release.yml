@@ -23,6 +23,10 @@ jobs:
       - run: npm run build:all
       - uses: softprops/action-gh-release@v2
         with:
-          files: build/*
+          files: |
+            build/*/sidecast-*
+            build/LICENSE
+            build/THIRD_PARTY_NOTICES.txt
+            build/SHA256SUMS
           generate_release_notes: true
           prerelease: true

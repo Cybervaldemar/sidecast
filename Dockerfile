@@ -12,13 +12,13 @@ COPY cmd ./cmd
 COPY internal ./internal
 COPY web/embed.go ./web/embed.go
 COPY --from=ui /src/web/dist ./web/dist
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /lanplay ./cmd/lanplay
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /sidecast ./cmd/sidecast
 
 FROM scratch
 COPY --from=server /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=server /lanplay /lanplay
+COPY --from=server /sidecast /sidecast
 COPY LICENSE /LICENSE
 USER 65532:65532
 EXPOSE 8080/tcp 50000-50100/udp
-ENTRYPOINT ["/lanplay"]
+ENTRYPOINT ["/sidecast"]
 CMD ["--data", "/data", "--udp-ports", "50000-50100"]

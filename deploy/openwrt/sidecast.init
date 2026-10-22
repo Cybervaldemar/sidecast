@@ -5,7 +5,7 @@ USE_PROCD=1
 
 start_service() {
   procd_open_instance
-  procd_set_param command /usr/bin/lanplay --listen :8080 --data /etc/lanplay --udp-ports 50000-50100 --max-viewers 2
+  procd_set_param command /usr/bin/sidecast --listen :8080 --data /etc/sidecast --udp-ports 50000-50100 --max-viewers 2
   procd_set_param respawn 3600 5 5
   procd_set_param stdout 1
   procd_set_param stderr 1

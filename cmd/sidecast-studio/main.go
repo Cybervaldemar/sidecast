@@ -11,16 +11,16 @@ import (
 	"os/signal"
 	"time"
 
-	"lanplay/internal/localstudio"
-	"lanplay/internal/nativecapture"
-	"lanplay/web"
+	"sidecast/internal/localstudio"
+	"sidecast/internal/nativecapture"
+	"sidecast/web"
 )
 
 func main() {
-	serverFlag := flag.String("server", "http://localhost:8080", "LANPlay server origin")
+	serverFlag := flag.String("server", "http://localhost:8080", "Sidecast server origin")
 	port := flag.Int("port", 8765, "Local studio port (loopback only)")
 	ffmpeg := flag.String("ffmpeg", "", "Path to FFmpeg with gfxcapture (Windows)")
-	audio := flag.String("audio-helper", "", "Path to lanplay-audio.exe (Windows)")
+	audio := flag.String("audio-helper", "", "Path to sidecast-audio.exe (Windows)")
 	flag.Parse()
 	server, err := url.Parse(*serverFlag)
 	if err != nil || server.Host == "" || (server.Scheme != "http" && server.Scheme != "https") || server.User != nil || server.RawQuery != "" || server.Fragment != "" || (server.Path != "" && server.Path != "/") {
@@ -41,7 +41,7 @@ func main() {
 		defer done()
 		_ = app.Shutdown(shutdown)
 	}()
-	fmt.Printf("LANPlay Studio · open http://127.0.0.1:%d · server %s\n", *port, server.Scheme+"://"+server.Host)
+	fmt.Printf("Sidecast Studio · open http://127.0.0.1:%d · server %s\n", *port, server.Scheme+"://"+server.Host)
 	if !capture.Capabilities().Available {
 		fmt.Println(capture.Capabilities().Reason)
 	}

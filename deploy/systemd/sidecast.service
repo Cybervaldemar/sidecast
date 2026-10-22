@@ -1,0 +1,20 @@
+[Unit]
+Description=Sidecast screen streaming
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=sidecast
+Group=sidecast
+StateDirectory=sidecast
+ExecStart=/usr/local/bin/sidecast --listen :8080 --data /var/lib/sidecast --udp-ports 50000-50100
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/sidecast
+
+[Install]
+WantedBy=multi-user.target

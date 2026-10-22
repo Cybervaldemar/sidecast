@@ -23,7 +23,7 @@ import (
 
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
-	"lanplay/internal/channels"
+	"sidecast/internal/channels"
 )
 
 type Stats struct {
@@ -76,7 +76,7 @@ func New(ctx context.Context, server *url.URL, ffmpeg, audioHelper string) *Cont
 	c.capabilities.Available = true
 	if c.audioHelper == "" {
 		if executable, err := os.Executable(); err == nil {
-			c.audioHelper = filepath.Join(filepath.Dir(executable), "lanplay-audio.exe")
+			c.audioHelper = filepath.Join(filepath.Dir(executable), "sidecast-audio.exe")
 		}
 	}
 	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

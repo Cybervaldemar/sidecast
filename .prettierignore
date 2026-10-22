@@ -1,0 +1,9 @@
+node_modules/
+web/dist/
+build/
+data/
+test-results/
+.runtime/
+.tools/
+.npm-cache/
+package-lock.json

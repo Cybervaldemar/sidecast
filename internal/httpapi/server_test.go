@@ -10,8 +10,8 @@ import (
 	"testing/fstest"
 
 	"github.com/pion/webrtc/v4"
-	"lanplay/internal/channels"
-	"lanplay/internal/media"
+	"sidecast/internal/channels"
+	"sidecast/internal/media"
 )
 
 func TestChannelAPIAndPrivateFiles(t *testing.T) {

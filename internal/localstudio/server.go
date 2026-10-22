@@ -1,5 +1,5 @@
 // Package localstudio serves the existing studio locally and proxies its API
-// to the chosen LANPlay server. Native capture controls never bind to the LAN.
+// to the chosen Sidecast server. Native capture controls never bind to the LAN.
 package localstudio
 
 import (
@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"lanplay/internal/nativecapture"
+	"sidecast/internal/nativecapture"
 )
 
 type Capture interface {

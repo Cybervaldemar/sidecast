@@ -1,37 +1,41 @@
 {
-  "name": "lanplay",
+  "name": "sidecast",
   "version": "2.0.0-alpha.1",
   "private": true,
   "type": "module",
   "description": "Self-hosted streaming with permanent channels, React and Go",
-  "engines": { "node": ">=20.11" },
+  "engines": {
+    "node": ">=20.11"
+  },
   "scripts": {
     "dev": "vite --config web/vite.config.ts",
-    "dev:server": "node scripts/go.mjs run ./cmd/lanplay",
+    "dev:server": "node scripts/go.mjs run ./cmd/sidecast --no-tray --data data",
+    "format": "prettier --write web package.json tsconfig.json .prettierrc.json",
+    "format:check": "prettier --check web package.json tsconfig.json .prettierrc.json",
     "build": "tsc --noEmit && vite build --config web/vite.config.ts",
     "build:app": "npm run build && node scripts/release.mjs --current",
     "build:all": "npm run build && node scripts/release.mjs",
-    "build:studio": "npm run build && node scripts/studio-build.mjs",
-    "build:studio:all": "npm run build && node scripts/studio-build.mjs --all",
-    "start": "node scripts/go.mjs run ./cmd/lanplay",
+    "build:clean": "node scripts/clean-build.mjs",
+    "icons:windows": "node scripts/windows-icons.mjs",
+    "start": "node scripts/go.mjs run ./cmd/sidecast --no-tray --data data",
     "check": "tsc --noEmit && node scripts/go.mjs vet ./...",
-    "test": "node scripts/go.mjs test ./...",
+    "test": "node --test scripts/clean-build.test.mjs && node scripts/go.mjs test ./...",
     "test:media": "node scripts/go.mjs test -count=1 -v ./internal/media",
-    "test:e2e": "node scripts/e2e.mjs",
-    "test:native": "node scripts/native-e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
+    "lucide-react": "^0.468.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
+    "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "typescript": "^5.9.3",
-    "vite": "^6.3.5",
     "@vitejs/plugin-react": "^4.7.0",
-    "@playwright/test": "^1.56.0",
-    "@types/node": "^22.0.0"
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "vite": "^6.3.5"
   }
 }

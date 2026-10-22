@@ -1,15 +1,43 @@
 $ErrorActionPreference = 'Stop'
-$lanplayRecord = Join-Path $PSScriptRoot '.runtime\v2-server.json'
-if (-not (Test-Path -LiteralPath $lanplayRecord)) {
-    Write-Host 'No background LANPlay v2 process is recorded. Use Ctrl+C in its terminal.'
+$sidecastExpectedBinaries = @(
+    (Join-Path $PSScriptRoot 'build\windows-amd64\sidecast-windows-amd64.exe')
+)
+$sidecastProcesses = @(Get-Process -Name 'sidecast-windows-*' -ErrorAction SilentlyContinue | Where-Object { $_.Path -in $sidecastExpectedBinaries })
+if (-not $sidecastProcesses.Count) {
+    Write-Host 'Sidecast is already stopped.'
     exit 0
 }
-$lanplaySaved = Get-Content -LiteralPath $lanplayRecord -Raw | ConvertFrom-Json
-$lanplayProcess = Get-Process -Id $lanplaySaved.processId -ErrorAction SilentlyContinue
-if (-not $lanplayProcess) { Write-Host 'LANPlay v2 is already stopped.'; exit 0 }
-$lanplayExpectedBinaries = @((Join-Path $PSScriptRoot 'build\lanplay-windows-amd64.exe'), (Join-Path $PSScriptRoot 'build\lanplay-windows-arm64.exe'))
-if ($lanplayProcess.Path -notin $lanplayExpectedBinaries -or $lanplayProcess.StartTime.ToUniversalTime().ToString('o') -ne $lanplaySaved.startedUtc) {
-    throw 'Saved process does not match this LANPlay v2 binary and start time. Refusing to stop it.'
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class SidecastTray {
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string className, string title);
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr window, out uint processId);
+    [DllImport("user32.dll")]
+    public static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 }
-Stop-Process -Id $lanplayProcess.Id
-Write-Host 'LANPlay v2 stopped.'
+'@
+$sidecastWindow = [IntPtr]::Zero
+$sidecastClosed = @()
+while ($true) {
+    $sidecastWindow = [SidecastTray]::FindWindowEx([IntPtr]::Zero, $sidecastWindow, 'Sidecast.Tray', 'Sidecast')
+    if ($sidecastWindow -eq [IntPtr]::Zero) { break }
+    [uint32]$sidecastWindowProcessId = 0
+    [void][SidecastTray]::GetWindowThreadProcessId($sidecastWindow, [ref]$sidecastWindowProcessId)
+    if ($sidecastWindowProcessId -in $sidecastProcesses.Id) {
+        if (-not [SidecastTray]::PostMessage($sidecastWindow, 0x0010, [IntPtr]::Zero, [IntPtr]::Zero)) {
+            throw 'Cannot send Exit to the Sidecast tray window.'
+        }
+        $sidecastClosed += $sidecastWindowProcessId
+    }
+}
+foreach ($sidecastProcess in $sidecastProcesses) {
+    if ($sidecastProcess.Id -notin $sidecastClosed) {
+        Write-Warning 'Sidecast has no tray window. Stop its service or console process directly.'
+    } elseif (-not $sidecastProcess.WaitForExit(10000)) {
+        throw 'Sidecast did not finish shutting down within 10 seconds.'
+    }
+}
+if ($sidecastClosed.Count) { Write-Host 'Sidecast stopped.' }

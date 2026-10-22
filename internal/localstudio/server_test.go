@@ -10,7 +10,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"lanplay/internal/nativecapture"
+	"sidecast/internal/nativecapture"
 )
 
 type fakeCapture struct {

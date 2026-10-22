@@ -1,4 +1,4 @@
-module lanplay
+module sidecast
 
 go 1.25.0
 

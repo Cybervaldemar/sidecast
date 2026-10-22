@@ -13,7 +13,7 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
         frame++;
         context.fillStyle = '#11151f'; context.fillRect(0, 0, 1920, 1080);
         context.fillStyle = '#b9a2ff'; context.font = 'bold 90px Segoe UI';
-        context.fillText('LANPLAY / LIVE TEST', 110, 220);
+        context.fillText('SIDECAST / LIVE TEST', 110, 220);
         context.fillStyle = '#91d6a0'; context.font = '50px Segoe UI';
         context.fillText('1920 × 1080 · VIDEO + AUDIO', 110, 330);
         context.fillStyle = '#66588f'; context.fillRect(110, 460, 1700, 12);

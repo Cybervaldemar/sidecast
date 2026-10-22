@@ -15,6 +15,7 @@ jobs:
         with:
           go-version-file: go.mod
       - run: npm ci
+      - run: npm run format:check
       - run: npm run build
       - run: go vet ./...
       - run: go test -race ./...

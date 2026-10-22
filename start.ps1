@@ -1,12 +1,9 @@
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
-$lanplayOSArch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
-$lanplayBinaryName = if ($lanplayOSArch -eq 'Arm64') { 'lanplay-windows-arm64.exe' } else { 'lanplay-windows-amd64.exe' }
-$lanplayBinary = Join-Path (Join-Path $PSScriptRoot 'build') $lanplayBinaryName
-if (-not (Test-Path -LiteralPath $lanplayBinary)) {
-    Write-Host 'Build LANPlay first: npm ci; npm run build:app' -ForegroundColor Yellow
+$sidecastBinary = Join-Path $PSScriptRoot 'build\windows-amd64\sidecast-windows-amd64.exe'
+if (-not (Test-Path -LiteralPath $sidecastBinary)) {
+    Write-Host 'Build Sidecast first: npm ci; npm run build:app' -ForegroundColor Yellow
     exit 1
 }
-Write-Host 'Open http://localhost:8080 in Chrome or Edge. Press Ctrl+C to stop.'
-& $lanplayBinary --data (Join-Path $PSScriptRoot 'data')
-exit $LASTEXITCODE
+Start-Process -FilePath $sidecastBinary -ArgumentList @('--data', ('"' + (Join-Path $PSScriptRoot 'data') + '"')) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
+Write-Host 'Sidecast is running in the system tray. The studio opens automatically. Use the studio shutdown button or Exit in the tray to stop.'

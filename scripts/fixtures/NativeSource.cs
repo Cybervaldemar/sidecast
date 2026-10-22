@@ -13,7 +13,7 @@ sealed class NativeSource : Form {
     int frame;
     protected override bool ShowWithoutActivation { get { return true; } }
     NativeSource() {
-        Text="LANPlay native integration source"; ClientSize=new Size(640,360);
+        Text="Sidecast native integration source"; ClientSize=new Size(640,360);
         ShowInTaskbar=false; DoubleBuffered=true;
         timer.Interval=8; timer.Tick+=delegate { frame++; Invalidate(); }; timer.Start();
         using (var memory=new MemoryStream()) {
@@ -30,7 +30,7 @@ sealed class NativeSource : Form {
     protected override void OnPaint(PaintEventArgs e) {
         e.Graphics.Clear(Color.FromArgb(15,25,45));
         e.Graphics.FillRectangle(Brushes.LimeGreen,(frame*7)%560,60,80,240);
-        e.Graphics.DrawString("LANPlay native test "+frame,Font,Brushes.White,20,20);
+        e.Graphics.DrawString("Sidecast native test "+frame,Font,Brushes.White,20,20);
     }
     protected override void Dispose(bool disposing) { PlaySound(IntPtr.Zero,IntPtr.Zero,0); timer.Dispose(); if(wave.IsAllocated) wave.Free(); base.Dispose(disposing); }
     [STAThread] static void Main() { Application.Run(new NativeSource()); }
