@@ -1,0 +1,220 @@
+body:has(.watch-page) {
+  min-width: 0;
+}
+.watch-page {
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.watch-header {
+  flex-shrink: 0;
+  height: 54px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+.watch-header .brand {
+  font-size: 21px;
+  gap: 8px;
+}
+.watch-header .brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+.watch-header .brand-mark svg {
+  width: 16px;
+  height: 16px;
+}
+.watch-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 1840px;
+  margin: 0 auto;
+  padding: 16px 24px 0;
+  display: flex;
+  flex-direction: column;
+}
+.watch-player {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #080a09;
+}
+.watch-player .video-stage {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+.watch-channel {
+  flex-shrink: 0;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 0;
+}
+.watch-channel h1 {
+  min-width: 0;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.watch-details {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.watch-viewers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #d5ddd2;
+}
+.watch-player .stage-label {
+  top: 16px;
+  left: 16px;
+  color: #d4d9d5;
+  background: #181c1ce6;
+  border: 0;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 9px;
+}
+.watch-player .stage-label.is-live {
+  color: #fff;
+  background: #db3046;
+}
+.watch-player .stage-label .status-dot {
+  display: none;
+}
+.watch-player .stage-empty {
+  max-width: 480px;
+  padding: 48px 24px;
+}
+.watch-player .stage-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 20px;
+  border-radius: 18px;
+}
+.watch-player .stage-empty h3 {
+  font-size: 21px;
+  line-height: 1.4;
+}
+.watch-player .stage-empty p {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.watch-player .stage-controls {
+  gap: 8px;
+  padding: 28px 12px 10px;
+  background: linear-gradient(transparent, #000a);
+}
+.watch-player .stage-controls .icon-button {
+  width: 36px;
+  height: 36px;
+  color: #f0f2f0;
+  background: transparent;
+}
+.watch-player .stage-controls .icon-button:hover {
+  background: #ffffff20;
+}
+.watch-player .volume-control input[type='range'] {
+  width: 96px;
+}
+.watch-player .video-error {
+  left: 16px;
+  right: 16px;
+  bottom: 68px;
+  margin: 0 auto;
+  max-width: 600px;
+}
+@media (max-width: 650px) {
+  .watch-header {
+    height: 48px;
+    padding: 0 16px;
+  }
+  .watch-content {
+    padding: 10px 10px 0;
+  }
+  .watch-channel {
+    min-height: 56px;
+    gap: 12px;
+    padding: 10px 4px;
+  }
+  .watch-channel h1 {
+    font-size: 18px;
+  }
+  .watch-details {
+    gap: 10px;
+    font-size: 10px;
+  }
+  .watch-player .stage-label {
+    top: 12px;
+    left: 12px;
+    font-size: 9px;
+  }
+  .watch-player .stage-empty {
+    padding: 44px 20px;
+  }
+  .watch-player .stage-empty h3 {
+    font-size: 18px;
+  }
+  .watch-player .stage-empty p {
+    font-size: 11px;
+  }
+  .watch-player .stage-controls {
+    padding: 24px 8px 8px;
+  }
+  .watch-player .stage-controls .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .watch-player .volume-control input[type='range'] {
+    width: 80px;
+  }
+}
+@media (max-height: 500px) {
+  .watch-header {
+    height: 40px;
+  }
+  .watch-content {
+    padding-top: 8px;
+  }
+  .watch-channel {
+    min-height: 44px;
+    padding-block: 8px;
+  }
+  .watch-player .stage-empty {
+    padding-block: 40px;
+  }
+  .watch-player .stage-empty-icon {
+    display: none;
+  }
+  .watch-player .stage-empty h3 {
+    font-size: 16px;
+  }
+  .watch-player .waiting-label {
+    margin-top: 12px;
+    padding: 5px 10px;
+  }
+}

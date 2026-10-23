@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Maximize, MonitorPlay, PictureInPicture2, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, MonitorPlay, PictureInPicture2, Volume2, VolumeX } from 'lucide-react';
 
 export function VideoStage({
   stream,
@@ -8,6 +8,7 @@ export function VideoStage({
   title,
   subtitle,
   live = false,
+  connectionError,
 }: {
   stream: MediaStream | null;
   preview?: boolean;
@@ -15,6 +16,7 @@ export function VideoStage({
   title?: string;
   subtitle?: string;
   live?: boolean;
+  connectionError?: string;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
@@ -23,11 +25,22 @@ export function VideoStage({
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(1);
   const [error, setError] = useState('');
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const update = () => setFullscreen(document.fullscreenElement === container.current);
+
+    update();
+    document.addEventListener('fullscreenchange', update);
+
+    return () => document.removeEventListener('fullscreenchange', update);
+  }, []);
 
   useEffect(() => {
     if (!video.current) return;
 
     video.current.srcObject = stream;
+    setError('');
 
     if (stream)
       void video.current
@@ -53,11 +66,30 @@ export function VideoStage({
     }
   }
 
+  async function toggleFullscreen() {
+    if (!container.current) return;
+
+    const exiting = document.fullscreenElement === container.current;
+
+    try {
+      if (exiting) await document.exitFullscreen();
+      else await container.current.requestFullscreen();
+
+      setError('');
+    } catch {
+      setError(
+        exiting ? 'Не удалось выйти из полноэкранного режима.' : 'Полноэкранный режим недоступен.',
+      );
+    }
+  }
+
+  const message = error || connectionError;
+
   return (
     <div className={`video-stage ${stream ? 'has-stream' : ''}`} ref={container}>
-      <div className="stage-label">
-        <span className={`status-dot ${live ? 'live' : ''}`} />
-        {live ? 'В ЭФИРЕ' : preview ? 'ПРЕДПРОСМОТР' : 'КАНАЛ ОФЛАЙН'}
+      <div className={`stage-label ${live ? 'is-live' : ''}`} role="status">
+        <span className={`status-dot ${live ? 'live' : ''}`} aria-hidden="true" />
+        {live ? 'В эфире' : preview ? 'ПРЕДПРОСМОТР' : 'Не в эфире'}
       </div>
       <video
         ref={video}
@@ -86,18 +118,17 @@ export function VideoStage({
           )}
         </div>
       )}
-      <div className="stage-controls">
-        <span>
-          {stream
-            ? preview
-              ? 'Локальный предпросмотр · звук выключен'
-              : 'Трансляция в реальном времени'
-            : preview && live
-              ? 'Просмотр доступен по ссылке зрителя'
-              : 'Готовы, когда будете готовы вы'}
-        </span>
-        <div>
-          {stream && !preview && (
+      {(preview || stream || fullscreen) && (
+        <div className="stage-controls">
+          {preview ? (
+            <span>
+              {stream
+                ? 'Локальный предпросмотр · звук выключен'
+                : live
+                  ? 'Просмотр доступен по ссылке зрителя'
+                  : 'Готовы, когда будете готовы вы'}
+            </span>
+          ) : stream ? (
             <div className="volume-control">
               <button
                 className="icon-button"
@@ -120,37 +151,39 @@ export function VideoStage({
                 title="Громкость"
               />
             </div>
+          ) : (
+            <span />
           )}
-          {stream && !preview && 'requestPictureInPicture' in HTMLVideoElement.prototype && (
+          <div>
+            {stream && !preview && 'requestPictureInPicture' in HTMLVideoElement.prototype && (
+              <button
+                className="icon-button"
+                onClick={() => {
+                  void video.current
+                    ?.requestPictureInPicture()
+                    .catch(() => setError('Режим «картинка в картинке» недоступен.'));
+                }}
+                aria-label="Картинка в картинке"
+              >
+                <PictureInPicture2 size={18} />
+              </button>
+            )}
             <button
               className="icon-button"
-              onClick={() => {
-                void video.current
-                  ?.requestPictureInPicture()
-                  .catch(() => setError('Режим «картинка в картинке» недоступен.'));
-              }}
-              aria-label="Картинка в картинке"
+              disabled={!stream && !fullscreen}
+              onClick={() => void toggleFullscreen()}
+              aria-label={fullscreen ? 'Выйти из полного экрана' : 'Полный экран'}
+              aria-pressed={fullscreen}
+              title={fullscreen ? 'Выйти из полного экрана' : 'Полный экран'}
             >
-              <PictureInPicture2 size={18} />
+              {fullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
             </button>
-          )}
-          <button
-            className="icon-button"
-            disabled={!stream}
-            onClick={() => {
-              void container.current
-                ?.requestFullscreen()
-                .catch(() => setError('Полноэкранный режим недоступен.'));
-            }}
-            aria-label="Полный экран"
-          >
-            <Maximize size={18} />
-          </button>
+          </div>
         </div>
-      </div>
-      {error && (
+      )}
+      {message && (
         <div className="video-error" role="alert">
-          {error}
+          {message}
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
+import { Users } from 'lucide-react';
 import { Brand } from '../components/Brand';
 import { VideoStage } from '../components/VideoStage';
-import { StatsBar } from '../components/StatsBar';
 import { useChannelStatus } from '../hooks/useChannelStatus';
 import { useViewer } from '../hooks/useViewer';
 import { usePeerStats } from '../hooks/usePeerStats';
@@ -10,32 +10,20 @@ export function Watch({ nickname, config }: { nickname: string; config: ServerCo
   const { status, reachable } = useChannelStatus(nickname);
   const viewer = useViewer(nickname, status?.sessionId ?? '', !!status?.live && reachable, config);
   const stats = usePeerStats(viewer.pc, false);
+  const live = !!status?.live && reachable;
 
   return (
     <div className="watch-page">
       <header className="watch-header">
         <Brand />
-        <a href="/" className="button secondary">
-          Открыть студию
-        </a>
       </header>
       <main className="watch-content">
-        <div className="watch-heading">
-          <div className="avatar">{nickname[0].toUpperCase()}</div>
-          <div>
-            <span className="eyebrow">ПОСТОЯННЫЙ КАНАЛ</span>
-            <h1>{nickname}</h1>
-          </div>
-          <span className={`status-pill ${status?.live ? 'on' : ''}`}>
-            <span className="status-dot" />
-            {status?.live ? 'В эфире' : 'Не в эфире'}
-          </span>
-        </div>
-        <section className="card watch-player">
+        <section className="watch-player" aria-label={`Трансляция ${nickname}`}>
           <VideoStage
             stream={viewer.stream}
-            live={!!status?.live && reachable}
+            live={live}
             waiting={!status?.live}
+            connectionError={viewer.error}
             title={
               !reachable
                 ? 'Восстанавливаем связь с сервером'
@@ -48,25 +36,24 @@ export function Watch({ nickname, config }: { nickname: string; config: ServerCo
                 ? 'Оставьте страницу открытой — попробуем снова.'
                 : status?.live
                   ? 'Подготавливаем видео и звук…'
-                  : 'Оставьте эту страницу открытой.\nТрансляция появится здесь, как только начнётся.'
+                  : 'Трансляция появится здесь, как только начнётся.'
             }
           />
-          <StatsBar stats={stats} viewers={status?.viewers ?? 0} live={viewer.connected} />
         </section>
-        {viewer.error && (
-          <p className="error" role="alert">
-            {viewer.error}
-          </p>
-        )}
-        <div className="watch-note">
-          <span className="tiny-dot green" />
-          <p>Одна ссылка для всех эфиров. Сохраните страницу в закладки.</p>
+        <div className="watch-channel">
+          <h1 title={nickname}>{nickname}</h1>
+          {viewer.connected && (
+            <div className="watch-details">
+              <span className="watch-viewers" aria-label={`Зрителей: ${status?.viewers ?? 0}`}>
+                <Users size={15} aria-hidden="true" />
+                {status?.viewers ?? 0}
+              </span>
+              {!!stats.height && <span>{stats.height}p</span>}
+              {!!stats.fps && <span>{Math.round(stats.fps)} FPS</span>}
+            </div>
+          )}
         </div>
-        <p className="watch-audio-hint">
-          Громкость регулируется ползунком рядом с динамиком в плеере.
-        </p>
       </main>
-      <footer className="watch-footer">Sidecast · Ваш экран. Ваш сервер.</footer>
     </div>
   );
 }

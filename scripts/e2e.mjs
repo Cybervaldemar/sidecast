@@ -45,6 +45,22 @@ async function decodedVideo(page) {
     return false;
   }), {timeout:25000}).toBe(true);
 }
+async function watchFits(page, viewport, screenshot) {
+  await page.setViewportSize(viewport);
+  await expect.poll(() => page.evaluate(() => {
+    const root = document.documentElement;
+    const bounds = selector => {
+      const rect = document.querySelector(selector).getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth + 1 && rect.bottom <= innerHeight + 1;
+    };
+    return root.scrollWidth <= innerWidth && root.scrollHeight <= innerHeight && bounds('.watch-player') && bounds('.watch-channel') && bounds('.watch-channel h1');
+  })).toBe(true);
+  await expect(page.getByRole('heading',{name:'test-streamer',exact:true})).toBeVisible();
+  await expect(page.getByRole('contentinfo')).toHaveCount(0);
+  await expect(page.getByRole('link',{name:'Открыть студию',exact:true})).toHaveCount(0);
+  await expect(page.getByText('ПОСТОЯННЫЙ КАНАЛ',{exact:true})).toHaveCount(0);
+  await page.screenshot({path:resolve(output,screenshot),fullPage:true});
+}
 let browser;
 try {
   startServer(); await ready();
@@ -77,11 +93,16 @@ try {
   expect(['localhost', '127.0.0.1', '[::1]']).not.toContain(viewerURL.hostname);
   await viewer.goto(viewerURL.href);
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible();
-  await viewer.screenshot({path:resolve(output,'waiting.png'),fullPage:true});
+  await watchFits(viewer,{width:1366,height:768},'waiting.png');
+  await watchFits(viewer,{width:390,height:844},'waiting-mobile.png');
+  await viewer.setViewportSize({width:1440,height:900});
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await expect.poll(() => viewer.locator('video').evaluate(video => video.videoWidth),{timeout:25000}).toBe(1920);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames),{timeout:10000}).toBeGreaterThan(10);
+  await expect(viewer.locator('.watch-player').getByRole('status')).toHaveText(/в эфире/i);
+  await expect(viewer.getByLabel(/^Зрителей:/)).toHaveText('1');
+  await expect(viewer.locator('.watch-details')).toContainText(/\d+p/);
   await viewer.getByRole('button',{name:'Включить звук',exact:true}).click();
   await expect.poll(() => viewer.locator('video').evaluate(video => video.srcObject?.getAudioTracks().length)).toBe(1);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.muted)).toBe(false);
@@ -105,10 +126,26 @@ try {
     }
     return false;
   }),{timeout:15000}).toBe(true);
+  const fullscreenButton = viewer.getByRole('button',{name:'Полный экран',exact:true});
+  const exitFullscreenButton = viewer.getByRole('button',{name:'Выйти из полного экрана',exact:true});
+  await fullscreenButton.click();
+  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === document.querySelector('.watch-player .video-stage'))).toBe(true);
+  await expect(exitFullscreenButton).toHaveAttribute('aria-pressed','true');
+  await exitFullscreenButton.click();
+  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(fullscreenButton).toHaveAttribute('aria-pressed','false');
+  await fullscreenButton.click();
+  await expect(exitFullscreenButton).toBeVisible();
+  await viewer.evaluate(() => document.exitFullscreen());
+  await expect(fullscreenButton).toHaveAttribute('aria-pressed','false');
   await studio.screenshot({path:resolve(output,'studio-live.png'),fullPage:true});
   await viewer.screenshot({path:resolve(output,'watch-live.png'),fullPage:true});
+  await fullscreenButton.click();
+  await expect(exitFullscreenButton).toBeVisible();
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
+  await exitFullscreenButton.click();
+  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await decodedVideo(viewer);
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
@@ -128,8 +165,15 @@ try {
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await decodedVideo(viewer);
-  await viewer.setViewportSize({width:390,height:844}); await viewer.screenshot({path:resolve(output,'watch-mobile.png'),fullPage:true});
-  expect(await viewer.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  for (const [width,height,name] of [[1920,1080,'desktop'],[1366,768,'laptop'],[390,844,'mobile'],[844,390,'landscape'],[320,568,'small']]) {
+    await watchFits(viewer,{width,height},`watch-${name}.png`);
+    await expect(viewer.getByRole('slider',{name:'Громкость',exact:true})).toBeVisible();
+    await expect(viewer.getByRole('button',{name:'Полный экран',exact:true})).toBeVisible();
+    expect(await viewer.getByRole('button',{name:'Полный экран',exact:true}).evaluate(button => {
+      const rect = button.getBoundingClientRect();
+      return rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight;
+    })).toBe(true);
+  }
   await studio.setViewportSize({width:390,height:844}); await studio.screenshot({path:resolve(output,'studio-mobile.png'),fullPage:true});
   expect(await studio.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await studio.getByRole('button',{name:'Как это работает'}).click();
@@ -195,6 +239,6 @@ try {
   })]);
   expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','nickname takeover denied','mobile layouts fit 390px','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
   writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }
