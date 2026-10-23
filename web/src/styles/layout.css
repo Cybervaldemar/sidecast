@@ -128,11 +128,6 @@
   flex-direction: column;
   gap: 14px;
 }
-.side-column {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 .connection-banner {
   padding: 13px 24px;
   color: #ffd098;
@@ -246,11 +241,6 @@
   .studio-grid {
     grid-template-columns: minmax(0, 1fr);
   }
-  .side-column {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
   .help-steps {
     grid-template-columns: 1fr;
   }
@@ -324,9 +314,6 @@
   .status-pill {
     font-size: 9px;
     padding: 7px 9px;
-  }
-  .side-column {
-    grid-template-columns: 1fr;
   }
   .connection-banner {
     padding: 12px 18px;

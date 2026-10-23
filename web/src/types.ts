@@ -3,44 +3,11 @@ export interface Identity {
   token: string;
 }
 
-export interface NativeCapabilities {
-  available: boolean;
-  platform: string;
-  reason?: string;
-  audio: boolean;
-  applicationAudio: boolean;
-}
-
-export interface NativeSource {
-  id: string;
-  name: string;
-  kind: 'window' | 'monitor';
-  width: number;
-  height: number;
-  processId?: number;
-}
-
-export interface NativeOptions {
-  sourceId: string;
-  audioSourceId: string;
-  encoder: string;
-}
-
-export interface NativeStatus {
-  phase: 'idle' | 'starting' | 'live';
-  sessionId?: string;
-  nickname?: string;
-  error?: string;
-  encoder?: string;
-  stats: StreamStats;
-}
-
 export interface ServerConfig {
   publicUrl: string;
   iceServers: RTCIceServer[];
   maxViewers: number;
   addresses: string[];
-  nativeCapture?: NativeCapabilities;
 }
 
 export interface ChannelStatus {

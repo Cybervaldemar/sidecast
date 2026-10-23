@@ -8,8 +8,14 @@ export function shareOrigin(config: ServerConfig | null, address: string) {
 
   const current = new URL(window.location.origin);
 
-  if (address && (current.hostname === 'localhost' || current.hostname === '127.0.0.1'))
-    current.hostname = address;
+  if (
+    address &&
+    (current.hostname === 'localhost' ||
+      current.hostname === '127.0.0.1' ||
+      current.hostname === '[::1]' ||
+      config?.addresses.includes(current.hostname.replace(/^\[|\]$/g, '')))
+  )
+    current.hostname = address.includes(':') ? `[${address}]` : address;
 
   return current.origin;
 }
@@ -32,7 +38,14 @@ export function ChannelCard({
   const [copied, setCopied] = useState(false);
   const [address, setAddress] = useState('');
 
-  const origin = shareOrigin(config, address || config?.addresses[0] || '');
+  const hostname = location.hostname.replace(/^\[|\]$/g, '');
+  const localAddress = config?.addresses.includes(hostname);
+  const selectedAddress = config?.addresses.includes(address)
+    ? address
+    : localAddress
+      ? hostname
+      : config?.addresses[0] || '';
+  const origin = shareOrigin(config, selectedAddress);
   const link = identity ? `${origin}/watch/${identity.nickname}` : '';
 
   async function claim(event: React.FormEvent) {
@@ -102,14 +115,15 @@ export function ChannelCard({
             </a>
           </div>
           {!config?.publicUrl &&
-            (location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
-            !!config?.addresses.length && (
+            (localAddress ||
+              hostname === 'localhost' ||
+              hostname === '127.0.0.1' ||
+              hostname === '::1') &&
+            !!config &&
+            config.addresses.length > 1 && (
               <label className="network-select">
                 Адрес для зрителей
-                <select
-                  value={address || config.addresses[0]}
-                  onChange={(e) => setAddress(e.target.value)}
-                >
+                <select value={selectedAddress} onChange={(e) => setAddress(e.target.value)}>
                   {config.addresses.map((ip) => (
                     <option key={ip} value={ip}>
                       {ip}

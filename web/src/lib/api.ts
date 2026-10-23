@@ -40,9 +40,6 @@ export async function api<T>(path: string, init: RequestInit = {}, secret?: stri
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
 
-    if (body.error === 'native_capture_failed' && typeof body.message === 'string')
-      throw new Error(body.message);
-
     throw new APIError(body.error ?? 'unknown', response.status);
   }
 

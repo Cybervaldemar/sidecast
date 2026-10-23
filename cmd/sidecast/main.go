@@ -85,7 +85,7 @@ func run() error {
 	}
 	hub := media.New(webrtc.NewAPI(webrtc.WithSettingEngine(settings)), webrtc.Configuration{ICEServers: iceServers}, *maxViewers, media.WithViewerSettings(settings))
 	defer hub.Close()
-	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers, Addresses: httpapi.Addresses()}, web.Assets())
+	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers}, web.Assets())
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	server := &http.Server{Addr: *listen, Handler: desktop.WithControls(app, cancel), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
@@ -94,6 +94,8 @@ func run() error {
 		return fmt.Errorf("start Sidecast: %w", err)
 	}
 	defer listener.Close()
+	secure := *tlsCert != ""
+	studio := desktop.LocalURL(listener.Addr().String(), secure) + "/studio"
 	shutdownDone := make(chan struct{})
 	go func() {
 		defer close(shutdownDone)
@@ -105,10 +107,13 @@ func run() error {
 		}
 	}()
 	fmt.Printf("Sidecast v2 · listening on %s · data: %s\n", *listen, *data)
+	if studio != "" {
+		fmt.Printf("Sidecast studio: %s\n", studio)
+	}
 	serveDone := make(chan error, 1)
 	go func() {
 		var serveErr error
-		if *tlsCert != "" {
+		if secure {
 			serveErr = server.ServeTLS(listener, *tlsCert, *tlsKey)
 		} else {
 			serveErr = server.Serve(listener)
@@ -119,7 +124,7 @@ func run() error {
 	if noTray {
 		<-ctx.Done()
 	} else {
-		err = desktop.Run(ctx, desktop.LocalURL(listener.Addr().String(), *tlsCert != "")+"/studio", cancel)
+		err = desktop.Run(ctx, studio, cancel)
 		cancel()
 	}
 	<-shutdownDone

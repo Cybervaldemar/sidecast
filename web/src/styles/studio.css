@@ -231,25 +231,6 @@
   color: #88977f;
   font-size: 10px;
 }
-.settings-help[open] > .setting-label {
-  margin-top: 12px;
-}
-.source-row {
-  display: flex;
-  gap: 8px;
-}
-.source-row select {
-  min-width: 0;
-  flex: 1;
-}
-.refresh-sources {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-}
-.capture-mode select {
-  max-width: 100%;
-}
 .host-studio .stats-bar {
   padding: 12px 0;
 }

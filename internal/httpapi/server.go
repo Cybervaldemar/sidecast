@@ -5,15 +5,14 @@ import (
 	"errors"
 	"io"
 	"io/fs"
-	"net"
 	"net/http"
 	"net/url"
-	"sort"
 	"strings"
 
 	"github.com/pion/webrtc/v4"
 	"sidecast/internal/channels"
 	"sidecast/internal/media"
+	"sidecast/internal/network"
 )
 
 type Config struct {
@@ -34,7 +33,11 @@ type Server struct {
 func New(store *channels.Store, hub *media.Hub, config Config, assets fs.FS) http.Handler {
 	s := &Server{Store: store, Hub: hub, Config: config, Assets: assets, negotiations: make(chan struct{}, 32)}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) { reply(w, 200, s.Config) })
+	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
+		config := s.Config
+		config.Addresses = network.Addresses()
+		reply(w, 200, config)
+	})
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, 200, map[string]string{"status": "ok", "version": "2.0.0-alpha.1"})
 	})
@@ -232,25 +235,4 @@ func (s *Server) static(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.NotFound(w, r)
-}
-
-func Addresses() []string {
-	result := []string{}
-	interfaces, _ := net.InterfaceAddrs()
-	for _, a := range interfaces {
-		if n, ok := a.(*net.IPNet); ok && !n.IP.IsLoopback() && !n.IP.IsLinkLocalUnicast() && n.IP.To4() != nil {
-			result = append(result, n.IP.String())
-		}
-	}
-	rank := func(address string) int {
-		if strings.HasPrefix(address, "192.168.") {
-			return 0
-		}
-		if net.ParseIP(address).IsPrivate() {
-			return 1
-		}
-		return 2
-	}
-	sort.SliceStable(result, func(i, j int) bool { return rank(result[i]) < rank(result[j]) })
-	return result
 }

@@ -22,11 +22,13 @@ jobs:
       - run: npm run build:app
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          SIDECAST_TEST_OUTPUT: ${{ runner.temp }}/sidecast-browser-results
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: browser-results
-          path: test-results/v2
+          path: ${{ runner.temp }}/sidecast-browser-results
   cross-build:
     runs-on: ubuntu-latest
     steps:

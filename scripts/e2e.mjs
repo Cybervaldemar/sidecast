@@ -10,11 +10,15 @@ const target = `${process.platform === 'win32' ? 'windows' : process.platform}-$
 const binary = resolve(process.env.SIDECAST_BINARY || process.env.LANPLAY_BINARY || `build/${target}/sidecast-${target}${process.platform === 'win32' ? '.exe' : ''}`);
 if (!existsSync(binary)) throw new Error('Build the standalone app first: npm run build:app');
 const data = mkdtempSync(resolve(tmpdir(),'sidecast-e2e-'));
+const output = resolve(process.env.SIDECAST_TEST_OUTPUT || resolve(data, 'results'));
 const origin = 'http://localhost:18080';
-mkdirSync('test-results/v2',{recursive:true});
+mkdirSync(output,{recursive:true});
 let server;
-function startServer() {
-  server = spawn(binary,['--no-tray','--listen','127.0.0.1:18080','--data',data],{windowsHide:true,stdio:['ignore','pipe','pipe']});
+let serverOutput = '';
+function startServer(listen = ':18080') {
+  serverOutput = '';
+  server = spawn(binary,['--no-tray','--listen',listen,'--data',data],{windowsHide:true,stdio:['ignore','pipe','pipe']});
+  server.stdout.on('data',chunk => { serverOutput += chunk; });
   server.stderr.on('data',chunk => process.stderr.write(chunk));
 }
 async function stopServer() {
@@ -55,7 +59,7 @@ try {
   await expect(studio).toHaveTitle('Sidecast — студия трансляций');
   await expect(studio.getByRole('link', { name: 'Sidecast — главная', exact: true })).toBeVisible();
   await expect(studio.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
-  await studio.screenshot({path:'test-results/v2/studio-empty.png',fullPage:true});
+  await studio.screenshot({path:resolve(output,'studio-empty.png'),fullPage:true});
   await studio.getByLabel('Никнейм',{exact:true}).fill('test-streamer');
   await studio.getByRole('button',{name:'Создать канал',exact:true}).click();
   await expect(studio.getByLabel('Постоянная ссылка')).toHaveValue(/\/watch\/test-streamer$/);
@@ -67,9 +71,13 @@ try {
     window.RTCPeerConnection = class extends Original { constructor(...args) { super(...args); window.__testPeers.push(this); } };
   });
   viewerContext.on('page',page => page.on('pageerror',error => errors.push(error.message)));
-  const viewer = await viewerContext.newPage(); await viewer.goto(`${origin}/watch/test-streamer`);
+  const viewer = await viewerContext.newPage();
+  const viewerURL = new URL(await studio.getByLabel('Постоянная ссылка').inputValue());
+  expect(viewerURL.protocol).toBe('http:');
+  expect(['localhost', '127.0.0.1', '[::1]']).not.toContain(viewerURL.hostname);
+  await viewer.goto(viewerURL.href);
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible();
-  await viewer.screenshot({path:'test-results/v2/waiting.png',fullPage:true});
+  await viewer.screenshot({path:resolve(output,'waiting.png'),fullPage:true});
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await expect.poll(() => viewer.locator('video').evaluate(video => video.videoWidth),{timeout:25000}).toBe(1920);
@@ -97,8 +105,8 @@ try {
     }
     return false;
   }),{timeout:15000}).toBe(true);
-  await studio.screenshot({path:'test-results/v2/studio-live.png',fullPage:true});
-  await viewer.screenshot({path:'test-results/v2/watch-live.png',fullPage:true});
+  await studio.screenshot({path:resolve(output,'studio-live.png'),fullPage:true});
+  await viewer.screenshot({path:resolve(output,'watch-live.png'),fullPage:true});
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
@@ -120,15 +128,15 @@ try {
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await decodedVideo(viewer);
-  await viewer.setViewportSize({width:390,height:844}); await viewer.screenshot({path:'test-results/v2/watch-mobile.png',fullPage:true});
+  await viewer.setViewportSize({width:390,height:844}); await viewer.screenshot({path:resolve(output,'watch-mobile.png'),fullPage:true});
   expect(await viewer.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
-  await studio.setViewportSize({width:390,height:844}); await studio.screenshot({path:'test-results/v2/studio-mobile.png',fullPage:true});
+  await studio.setViewportSize({width:390,height:844}); await studio.screenshot({path:resolve(output,'studio-mobile.png'),fullPage:true});
   expect(await studio.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await studio.getByRole('button',{name:'Как это работает'}).click();
   await expect(studio.getByRole('heading',{name:'От экрана до зрителя.'})).toBeVisible();
   await studio.getByRole('button',{name:'Студия',exact:true}).click();
   await expect(studio.getByRole('button',{name:'Выключить приложение',exact:true})).toBeVisible();
-  await studio.screenshot({path:'test-results/v2/studio-shutdown-mobile.png',fullPage:true});
+  await studio.screenshot({path:resolve(output,'studio-shutdown-mobile.png'),fullPage:true});
   expect(await studio.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await decodedVideo(viewer);
@@ -144,7 +152,49 @@ try {
   expect(exitCode).toBe(0);
   expect(await studio.evaluate(() => window.__shutdownTracks.every(track => track.readyState === 'ended'))).toBe(true);
   await expect.poll(async () => { try { await fetch(`${origin}/api/health`); return true; } catch { return false; } }).toBe(false);
+  // Use the application's discovered LAN address, with the original HTTP transport.
+  startServer(':0');
+  await expect.poll(() => serverOutput, {timeout:15000}).toContain('Sidecast studio:');
+  const localStudio = serverOutput.match(/Sidecast studio: (\S+)/)[1];
+  const localURL = new URL(localStudio);
+  expect(localURL.protocol).toBe('http:');
+  expect(localURL.hostname).toBe('localhost');
+  const networkConfig = await fetch(`${localURL.origin}/api/config`).then(response => response.json());
+  expect(networkConfig.addresses.length).toBeGreaterThan(0);
+  const networkURL = new URL(localStudio);
+  const networkAddress = networkConfig.addresses[0];
+  networkURL.hostname = networkAddress.includes(':') ? `[${networkAddress}]` : networkAddress;
+  expect(['localhost', '127.0.0.1', '[::1]']).not.toContain(networkURL.hostname);
+  const networkContext = await browser.newContext({viewport:{width:1440,height:1100}});
+  const networkPage = await networkContext.newPage();
+  networkPage.on('pageerror',error => errors.push(error.message));
+  await networkPage.goto(networkURL.href);
+  await expect(networkPage.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
+  await networkPage.getByLabel('Никнейм',{exact:true}).fill('lan-streamer');
+  await networkPage.getByRole('button',{name:'Создать канал',exact:true}).click();
+  await expect(networkPage.getByLabel('Постоянная ссылка')).toHaveValue(`${networkURL.origin}/watch/lan-streamer`);
+  const networkCapture = await networkPage.evaluate(() => ({
+    secureContext: window.isSecureContext,
+    captureAvailable: typeof navigator.mediaDevices?.getDisplayMedia === 'function',
+  }));
+  if (!networkCapture.captureAvailable) {
+    await networkPage.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
+    await expect(networkPage.getByRole('alert')).toHaveText('Для захвата экрана откройте студию через localhost на компьютере ведущего.');
+  }
+  await expect(networkPage.getByRole('button',{name:'Выключить приложение',exact:true})).toHaveCount(0);
+  await networkPage.screenshot({path:resolve(output,'studio-lan.png'),fullPage:true});
+  const localPage = await networkContext.newPage();
+  await localPage.goto(localStudio);
+  expect(await localPage.evaluate(() => window.isSecureContext && typeof navigator.mediaDevices?.getDisplayMedia === 'function')).toBe(true);
+  const networkStopped = once(server, 'exit');
+  await localPage.getByRole('button',{name:'Выключить приложение',exact:true}).click();
+  await expect(localPage.getByRole('heading',{name:'Приложение выключено',exact:true})).toBeVisible();
+  const [networkExitCode] = await Promise.race([networkStopped, new Promise((_, reject) => {
+    const timer = setTimeout(() => reject(new Error('LAN shutdown did not stop the application')), 10000);
+    timer.unref();
+  })]);
+  expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','waiting → decoded video + nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','nickname takeover denied','mobile layouts fit 390px','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','no page errors'],screenshots:'test-results/v2',dataDirectory:data};
-  writeFileSync('test-results/v2/results.json',JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','nickname takeover denied','mobile layouts fit 390px','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }

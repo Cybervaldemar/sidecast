@@ -4,14 +4,12 @@ import { ChannelCard } from '../components/ChannelCard';
 import { StreamSettings } from '../components/StreamSettings';
 import { VideoStage } from '../components/VideoStage';
 import { StatsBar } from '../components/StatsBar';
-import { CaptureMode } from '../components/CaptureMode';
 import { usePublisher } from '../hooks/usePublisher';
-import { useNativePublisher } from '../hooks/useNativePublisher';
 import { usePeerStats } from '../hooks/usePeerStats';
 import { useChannelStatus } from '../hooks/useChannelStatus';
 import { useApplication } from '../hooks/useApplication';
 import { loadIdentity, saveIdentity } from '../lib/identity';
-import type { Identity, NativeOptions, ServerConfig, StreamSettings as Settings } from '../types';
+import type { Identity, ServerConfig, StreamSettings as Settings } from '../types';
 
 export function Studio({
   config,
@@ -24,23 +22,8 @@ export function Studio({
   const [identity, setIdentity] = useState(loadIdentity);
   const [saveError, setSaveError] = useState('');
   const [settings, setSettings] = useState<Settings>({ fps: 60, bitrate: 12, audio: 'window' });
-  const [mode, setMode] = useState<'browser' | 'native'>('browser');
-  const [nativeOptions, setNativeOptions] = useState<NativeOptions>({
-    sourceId: '',
-    audioSourceId: '',
-    encoder: 'auto',
-  });
-
-  const browserPublisher = usePublisher(identity, config);
-  const nativePublisher = useNativePublisher(
-    identity,
-    mode === 'native' && !!config?.nativeCapture?.available,
-    nativeOptions,
-  );
-  const publisher = mode === 'native' ? nativePublisher : browserPublisher;
-
-  const browserStats = usePeerStats(browserPublisher.pc, true);
-  const stats = mode === 'native' ? nativePublisher.stats : browserStats;
+  const publisher = usePublisher(identity, config);
+  const stats = usePeerStats(publisher.pc, true);
   const { status, reachable } = useChannelStatus(identity?.nickname ?? '');
 
   const busy = publisher.phase !== 'idle' || application.stopping;
@@ -49,8 +32,7 @@ export function Studio({
   async function shutdown() {
     if (!(await application.shutdown())) return;
 
-    browserPublisher.stop();
-    nativePublisher.stop();
+    publisher.stop();
     onShutdown();
   }
 
@@ -119,25 +101,7 @@ export function Studio({
                 </div>
                 {identity && <span className="subtle">@{identity.nickname}</span>}
               </div>
-              <VideoStage
-                stream={publisher.stream}
-                preview
-                live={live}
-                title={
-                  mode === 'native'
-                    ? live
-                      ? 'Нативная трансляция запущена'
-                      : 'Нативный захват Windows'
-                    : undefined
-                }
-                subtitle={
-                  mode === 'native'
-                    ? live
-                      ? 'Видео передаётся на сервер.\nПроверить изображение можно по ссылке зрителя.'
-                      : 'Выберите окно или экран и источник звука.\nИзображение захватывается средствами Windows.'
-                    : undefined
-                }
-              />
+              <VideoStage stream={publisher.stream} preview live={live} />
               <StatsBar stats={stats} viewers={status?.viewers ?? 0} live={live} />
               <div className="broadcast-actions">
                 <div>
@@ -153,22 +117,15 @@ export function Studio({
                   </span>
                   {live && (
                     <p>
-                      {mode === 'native'
-                        ? `${settings.audio === 'off' ? 'Нативное видео · без звука' : 'Нативное видео и звук'} · ${nativePublisher.encoder ?? 'H.264'}`
-                        : `${publisher.stream?.getAudioTracks().length ? 'Видео и звук передаются' : 'Видео передаётся · аудиодорожка отсутствует'}`}
+                      {publisher.stream?.getAudioTracks().length
+                        ? 'Видео и звук передаются'
+                        : 'Видео передаётся · аудиодорожка отсутствует'}
                     </p>
                   )}
                 </div>
                 <button
                   className={`button ${busy ? 'stop' : 'primary'}`}
-                  disabled={
-                    !identity ||
-                    !config ||
-                    (!busy &&
-                      mode === 'native' &&
-                      (!nativeOptions.sourceId ||
-                        (settings.audio === 'window' && !nativeOptions.audioSourceId)))
-                  }
+                  disabled={!identity || !config || application.stopping}
                   onClick={() => (busy ? publisher.stop() : void publisher.start(settings))}
                 >
                   {busy ? <Square size={15} fill="currentColor" /> : <Radio size={17} />}
@@ -196,21 +153,7 @@ export function Studio({
             )}
           </div>
           <div className="side-column">
-            <CaptureMode
-              capabilities={config?.nativeCapture}
-              mode={mode}
-              onMode={setMode}
-              options={nativeOptions}
-              onOptions={setNativeOptions}
-              audio={settings.audio}
-              disabled={busy}
-            />
-            <StreamSettings
-              value={settings}
-              onChange={setSettings}
-              disabled={busy}
-              native={mode === 'native' ? config?.nativeCapture : undefined}
-            />
+            <StreamSettings value={settings} onChange={setSettings} disabled={busy} />
           </div>
         </div>
       </main>

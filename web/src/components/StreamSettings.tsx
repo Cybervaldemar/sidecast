@@ -1,16 +1,14 @@
 import { Monitor, SlidersHorizontal, Volume2 } from 'lucide-react';
-import type { NativeCapabilities, StreamSettings as Settings } from '../types';
+import type { StreamSettings as Settings } from '../types';
 
 export function StreamSettings({
   value,
   onChange,
   disabled,
-  native,
 }: {
   value: Settings;
   onChange: (value: Settings) => void;
   disabled: boolean;
-  native?: NativeCapabilities;
 }) {
   return (
     <section className="card settings-card">
@@ -59,12 +57,8 @@ export function StreamSettings({
           value={value.audio}
           onChange={(e) => onChange({ ...value, audio: e.target.value as Settings['audio'] })}
         >
-          <option value="window" disabled={native && !native.applicationAudio}>
-            {native ? 'Звук выбранного приложения' : 'Звук выбранного окна'}
-          </option>
-          <option value="system" disabled={native && !native.audio}>
-            Системный звук
-          </option>
+          <option value="window">Звук выбранного окна</option>
+          <option value="system">Системный звук</option>
           <option value="off">Без звука</option>
         </select>
         <details className="settings-help">
@@ -73,9 +67,8 @@ export function StreamSettings({
             60 FPS — для плавных игр и рабочего стола. Разрешение — как у выбранного источника.
           </p>
           <p className="field-hint">
-            {native
-              ? 'Системный звук захватывает все приложения на основном устройстве вывода; без звука — только видео.'
-              : 'Включите передачу звука в диалоге выбора экрана. Доступность зависит от браузера и ОС.'}
+            Источник и передачу звука выберите в диалоге браузера при запуске. Доступность зависит
+            от браузера и ОС.
           </p>
         </details>
       </fieldset>

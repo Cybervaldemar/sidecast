@@ -40,7 +40,7 @@ export async function offer(pc: RTCPeerConnection): Promise<RTCSessionDescriptio
 
 export async function capture(settings: StreamSettings) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia)
-    throw new Error('Для захвата откройте студию через localhost или HTTPS.');
+    throw new Error('Для захвата экрана откройте студию через localhost на компьютере ведущего.');
 
   const options = {
     video: { frameRate: { ideal: settings.fps, max: settings.fps }, displaySurface: 'window' },

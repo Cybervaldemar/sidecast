@@ -2,7 +2,6 @@
 **/.certs/
 **/.npm-cache/
 **/test-results/
-**/.runtime/
 **/*.log
 **/.env
 .env.*

@@ -24,8 +24,11 @@ export function App() {
         const next = await getConfig();
 
         if (active) {
-          setConfig(next);
+          setConfig((current) =>
+            JSON.stringify(current) === JSON.stringify(next) ? current : next,
+          );
           setError(false);
+          timer = setTimeout(load, 15000);
         }
       } catch {
         if (active) {
