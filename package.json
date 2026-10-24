@@ -21,7 +21,8 @@
     "check": "tsc --noEmit && node scripts/go.mjs vet ./...",
     "test": "node --test scripts/clean-build.test.mjs && node scripts/go.mjs test ./...",
     "test:media": "node scripts/go.mjs test -count=1 -v ./internal/media",
-    "test:e2e": "node scripts/e2e.mjs"
+    "test:e2e": "node scripts/e2e.mjs",
+    "test:streaming": "node scripts/streaming-check.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -51,6 +51,8 @@ export async function capture(settings: StreamSettings) {
   } as DisplayMediaStreamOptions;
   const stream = await navigator.mediaDevices.getDisplayMedia(options);
 
+  for (const track of stream.getVideoTracks()) track.contentHint = 'motion';
+
   for (const track of stream.getAudioTracks()) {
     track.contentHint = 'music';
     await track
@@ -70,6 +72,8 @@ export async function tune(pc: RTCPeerConnection, bitrate: number, fps: number) 
     const p = sender.getParameters();
 
     if (!p.encodings?.length) continue;
+
+    if (sender.track?.kind === 'video') p.degradationPreference = 'maintain-framerate';
 
     for (const e of p.encodings) {
       e.maxBitrate = sender.track?.kind === 'video' ? bitrate * 1_000_000 : 160_000;

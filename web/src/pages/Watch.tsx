@@ -8,9 +8,9 @@ import type { ServerConfig } from '../types';
 
 export function Watch({ nickname, config }: { nickname: string; config: ServerConfig | null }) {
   const { status, reachable } = useChannelStatus(nickname);
-  const viewer = useViewer(nickname, status?.sessionId ?? '', !!status?.live && reachable, config);
+  const viewer = useViewer(nickname, status?.sessionId ?? '', !!status?.live, config);
   const stats = usePeerStats(viewer.pc, false);
-  const live = !!status?.live && reachable;
+  const live = !!status?.live && (reachable || viewer.connected);
 
   return (
     <div className="watch-page">

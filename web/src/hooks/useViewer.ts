@@ -13,6 +13,8 @@ export function useViewer(
   const [pc, setPC] = useState<RTCPeerConnection | null>(null);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(false);
+  const configured = config !== null;
+  const iceServers = JSON.stringify(config?.iceServers ?? []);
 
   useEffect(() => {
     setStream(null);
@@ -20,7 +22,7 @@ export function useViewer(
     setConnected(false);
     setError('');
 
-    if (!live || !config || !session) return;
+    if (!live || !configured || !session) return;
 
     let active = true;
     let peer: RTCPeerConnection | null = null;
@@ -45,9 +47,12 @@ export function useViewer(
     async function connect() {
       if (!active) return;
 
+      clearTimeout(timer);
       release();
 
-      const current = new RTCPeerConnection({ iceServers: config!.iceServers });
+      const current = new RTCPeerConnection({
+        iceServers: JSON.parse(iceServers) as RTCIceServer[],
+      });
 
       peer = current;
 
@@ -74,6 +79,7 @@ export function useViewer(
         if (!active || current !== peer) return;
 
         if (current.connectionState === 'connected') {
+          clearTimeout(timer);
           setConnected(true);
           setError('');
         }
@@ -82,7 +88,9 @@ export function useViewer(
           setConnected(false);
           setError('Восстанавливаем соединение…');
           clearTimeout(timer);
-          timer = setTimeout(connect, 3000);
+          timer = setTimeout(() => {
+            if (peer === current && current.connectionState !== 'connected') void connect();
+          }, 3000);
         }
       };
 
@@ -111,6 +119,7 @@ export function useViewer(
 
         setError(errorMessage(e));
         release();
+        clearTimeout(timer);
         timer = setTimeout(connect, 4000);
       }
     }
@@ -126,7 +135,7 @@ export function useViewer(
       release();
       window.removeEventListener('pagehide', pagehide);
     };
-  }, [nickname, session, live, config]);
+  }, [nickname, session, live, configured, iceServers]);
 
   return { stream, pc, error, connected };
 }

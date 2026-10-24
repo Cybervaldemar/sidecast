@@ -42,7 +42,7 @@ func newViewerPeer(settings webrtc.SettingEngine, config webrtc.Configuration) (
 		_ = pacer.Close()
 		return nil, nil, err
 	}
-	if err = webrtc.RegisterDefaultInterceptors(engine, registry); err != nil {
+	if err = registerMediaInterceptors(engine, registry); err != nil {
 		_ = pacer.Close()
 		return nil, nil, err
 	}

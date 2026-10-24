@@ -8,10 +8,25 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
       if (scenario === 'cancel') throw new DOMException('Test cancellation', 'NotAllowedError');
       const canvas = document.createElement('canvas'); canvas.width = 1920; canvas.height = 1080;
       const context = canvas.getContext('2d');
+      let texture;
+      if (scenario === 'motion') {
+        texture = document.createElement('canvas'); texture.width = 2560; texture.height = 1440;
+        const pixels = texture.getContext('2d');
+        let seed = 12345;
+        for (let y = 0; y < texture.height; y += 16) for (let x = 0; x < texture.width; x += 16) {
+          seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+          pixels.fillStyle = `rgb(${seed & 255},${(seed >>> 8) & 255},${(seed >>> 16) & 255})`;
+          pixels.fillRect(x, y, 16, 16);
+        }
+      }
       let frame = 0;
       const draw = () => {
         frame++;
         context.fillStyle = '#11151f'; context.fillRect(0, 0, 1920, 1080);
+        if (texture) {
+          context.drawImage(texture,(frame * 9) % 640,(frame * 5) % 360,1920,1080,0,0,1920,1080);
+          context.fillStyle = '#11151fcc'; context.fillRect(75,90,1300,280);
+        }
         context.fillStyle = '#b9a2ff'; context.font = 'bold 90px Segoe UI';
         context.fillText('SIDECAST / LIVE TEST', 110, 220);
         context.fillStyle = '#91d6a0'; context.font = '50px Segoe UI';

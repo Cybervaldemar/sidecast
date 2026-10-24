@@ -83,7 +83,11 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("open channel storage: %w", err)
 	}
-	hub := media.New(webrtc.NewAPI(webrtc.WithSettingEngine(settings)), webrtc.Configuration{ICEServers: iceServers}, *maxViewers, media.WithViewerSettings(settings))
+	publisherAPI, err := media.NewPublisherAPI(settings)
+	if err != nil {
+		return fmt.Errorf("configure streaming: %w", err)
+	}
+	hub := media.New(publisherAPI, webrtc.Configuration{ICEServers: iceServers}, *maxViewers, media.WithViewerSettings(settings))
 	defer hub.Close()
 	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers}, web.Assets())
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)

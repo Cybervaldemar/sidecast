@@ -61,6 +61,48 @@ async function watchFits(page, viewport, screenshot) {
   await expect(page.getByText('ПОСТОЯННЫЙ КАНАЛ',{exact:true})).toHaveCount(0);
   await page.screenshot({path:resolve(output,screenshot),fullPage:true});
 }
+async function viewerSurvivesControlGlitches(page) {
+  const before = await page.evaluate(() => ({connections:window.__testPeers.length,stream:document.querySelector('video').srcObject?.id}));
+  const unchanged = async () => {
+    expect(await page.evaluate(() => ({connections:window.__testPeers.length,stream:document.querySelector('video').srcObject?.id}))).toEqual(before);
+    expect(await page.evaluate(() => window.__testPeers.at(-1).connectionState)).toBe('connected');
+  };
+  // Losing one status response must not tear down an otherwise healthy RTP path.
+  let failed = false;
+  const failStatus = async route => {
+    if (!failed) { failed = true; await route.abort('failed'); }
+    else await route.continue();
+  };
+  await page.route('**/api/channels/test-streamer',failStatus);
+  await expect.poll(() => failed,{timeout:5000}).toBe(true);
+  await page.waitForTimeout(500);
+  await unchanged();
+  await page.unroute('**/api/channels/test-streamer',failStatus);
+  // Dispatch the temporary disconnected/recovered transition without disrupting
+  // this test machine's network. A stale 3 s timer used to close the recovered PC.
+  await page.evaluate(() => {
+    const peer = window.__testPeers.at(-1);
+    Object.defineProperty(peer,'connectionState',{configurable:true,value:'disconnected'});
+    peer.dispatchEvent(new Event('connectionstatechange'));
+    delete peer.connectionState;
+    peer.dispatchEvent(new Event('connectionstatechange'));
+  });
+  await page.waitForTimeout(3300);
+  await unchanged();
+  // Changes to LAN addresses are presentation metadata, not an ICE restart.
+  let refreshed = false;
+  const changeMetadata = async route => {
+    const response = await route.fetch();
+    const config = await response.json();
+    await route.fulfill({response,json:{...config,addresses:[...config.addresses,'192.0.2.1']}});
+    refreshed = true;
+  };
+  await page.route('**/api/config',changeMetadata);
+  await expect.poll(() => refreshed,{timeout:18000}).toBe(true);
+  await page.waitForTimeout(500);
+  await unchanged();
+  await page.unroute('**/api/config',changeMetadata);
+}
 let browser;
 try {
   startServer(); await ready();
@@ -126,6 +168,7 @@ try {
     }
     return false;
   }),{timeout:15000}).toBe(true);
+  await viewerSurvivesControlGlitches(viewer);
   const fullscreenButton = viewer.getByRole('button',{name:'Полный экран',exact:true});
   const exitFullscreenButton = viewer.getByRole('button',{name:'Выйти из полного экрана',exact:true});
   await fullscreenButton.click();
@@ -239,6 +282,6 @@ try {
   })]);
   expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
   writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }
