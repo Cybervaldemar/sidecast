@@ -34,7 +34,9 @@ type pacedPacket struct {
 type viewerPacer struct {
 	mu             sync.Mutex
 	writers        map[uint32]interceptor.RTPWriter
+	audioStreams   map[uint32]bool
 	queue          list.List
+	audioQueue     list.List
 	bytes          int
 	rate           int
 	sourceRate     int
@@ -48,7 +50,7 @@ type viewerPacer struct {
 }
 
 func newViewerPacer(failed func()) *viewerPacer {
-	p := &viewerPacer{writers: map[uint32]interceptor.RTPWriter{}, rate: 48_000_000, done: make(chan struct{}), failed: failed}
+	p := &viewerPacer{writers: map[uint32]interceptor.RTPWriter{}, audioStreams: map[uint32]bool{}, rate: 48_000_000, done: make(chan struct{}), failed: failed}
 	go p.run()
 	return p
 }
@@ -62,6 +64,12 @@ func (p *viewerPacer) start() {
 func (p *viewerPacer) AddStream(ssrc uint32, writer interceptor.RTPWriter) {
 	p.mu.Lock()
 	p.writers[ssrc] = writer
+	p.mu.Unlock()
+}
+
+func (p *viewerPacer) markAudio(ssrc uint32) {
+	p.mu.Lock()
+	p.audioStreams[ssrc] = true
 	p.mu.Unlock()
 }
 
@@ -125,7 +133,7 @@ func (p *viewerPacer) Write(header *rtp.Header, payload []byte, attributes inter
 		p.inputWindow = now
 		p.inputBytes = 0
 	}
-	if p.bytes+size > viewerQueueBytes || p.queue.Len() >= viewerQueuePackets {
+	if p.bytes+size > viewerQueueBytes || p.queue.Len()+p.audioQueue.Len() >= viewerQueuePackets {
 		p.failLocked("queue capacity exceeded")
 		return 0, io.ErrShortBuffer
 	}
@@ -136,7 +144,11 @@ func (p *viewerPacer) Write(header *rtp.Header, payload []byte, attributes inter
 			copied[key] = value
 		}
 	}
-	p.queue.PushBack(pacedPacket{header: header.Clone(), payload: append([]byte(nil), payload...), attributes: copied, queued: time.Now(), size: size})
+	queue := &p.queue
+	if p.audioStreams[header.SSRC] {
+		queue = &p.audioQueue
+	}
+	queue.PushBack(pacedPacket{header: header.Clone(), payload: append([]byte(nil), payload...), attributes: copied, queued: now, size: size})
 	p.bytes += size
 	return size, nil
 }
@@ -145,6 +157,7 @@ func (p *viewerPacer) closeLocked() {
 	if !p.closed {
 		p.closed = true
 		p.queue.Init()
+		p.audioQueue.Init()
 		p.bytes = 0
 		close(p.done)
 	}
@@ -152,7 +165,7 @@ func (p *viewerPacer) closeLocked() {
 
 func (p *viewerPacer) failLocked(reason string) {
 	if !p.closed {
-		log.Printf("viewer transport stopped: %s (pacing=%d bit/s, queued=%d bytes, packets=%d)", reason, p.effectiveRateLocked(), p.bytes, p.queue.Len())
+		log.Printf("viewer transport stopped: %s (pacing=%d bit/s, queued=%d bytes, packets=%d)", reason, p.effectiveRateLocked(), p.bytes, p.queue.Len()+p.audioQueue.Len())
 		p.closeLocked()
 		// Closing a PeerConnection also closes its interceptors. Do it outside
 		// this worker and its lock to avoid a shutdown deadlock.
@@ -183,20 +196,35 @@ func (p *viewerPacer) run() {
 			// Cap idle credit at 10 ms: a keyframe must not burst all at once.
 			rate := p.effectiveRateLocked()
 			creditLimit := max(1500, float64(rate)/800)
-			if front := p.queue.Front(); front != nil {
-				creditLimit = max(creditLimit, float64(front.Value.(pacedPacket).size))
+			for _, queue := range []*list.List{&p.queue, &p.audioQueue} {
+				if front := queue.Front(); front != nil {
+					creditLimit = max(creditLimit, float64(front.Value.(pacedPacket).size))
+				}
 			}
 			budget = min(budget+elapsed*float64(rate)/8, creditLimit)
-			for !p.closed && p.queue.Len() > 0 {
-				next := p.queue.Front().Value.(pacedPacket)
-				if time.Since(next.queued) > viewerQueueDelay {
-					p.failLocked("queue exceeded 500 ms")
+			for !p.closed && p.queue.Len()+p.audioQueue.Len() > 0 {
+				// Check both queues: audio priority must not hide an overloaded
+				// video stream or allow its latency to grow without bound.
+				for _, queue := range []*list.List{&p.queue, &p.audioQueue} {
+					if front := queue.Front(); front != nil && time.Since(front.Value.(pacedPacket).queued) > viewerQueueDelay {
+						p.failLocked("queue exceeded 500 ms")
+						break
+					}
+				}
+				if p.closed {
 					break
 				}
+				// Small audio packets must not sit behind a whole video frame.
+				// Both queues spend the same pacing budget and share all limits.
+				queue := &p.audioQueue
+				if queue.Len() == 0 {
+					queue = &p.queue
+				}
+				next := queue.Front().Value.(pacedPacket)
 				if float64(next.size) > budget {
 					break
 				}
-				p.queue.Remove(p.queue.Front())
+				queue.Remove(queue.Front())
 				p.bytes -= next.size
 				writer := p.writers[next.header.SSRC]
 				budget -= float64(next.size)

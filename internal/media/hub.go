@@ -104,6 +104,9 @@ func answer(ctx context.Context, pc *webrtc.PeerConnection, offer webrtc.Session
 	if err := pc.SetRemoteDescription(offer); err != nil {
 		return nil, err
 	}
+	if err := configureAudio(pc); err != nil {
+		return nil, err
+	}
 	sdp, err := pc.CreateAnswer(nil)
 	if err != nil {
 		return nil, err

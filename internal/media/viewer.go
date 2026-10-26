@@ -1,6 +1,8 @@
 package media
 
 import (
+	"strings"
+
 	"github.com/pion/interceptor"
 	"github.com/pion/interceptor/pkg/cc"
 	"github.com/pion/interceptor/pkg/gcc"
@@ -82,6 +84,9 @@ type viewerHeaders struct {
 }
 
 func (v *viewerHeaders) BindLocalStream(info *interceptor.StreamInfo, writer interceptor.RTPWriter) interceptor.RTPWriter {
+	if strings.HasPrefix(strings.ToLower(info.MimeType), "audio/") {
+		v.pacer.markAudio(info.SSRC)
+	}
 	// Pion's NACK responder sends RTX through the primary stream's writer.
 	// GCC registers only the primary SSRC, so explicitly route the RTX SSRC too.
 	v.pacer.addRTX(info.SSRC, info.SSRCRetransmission)

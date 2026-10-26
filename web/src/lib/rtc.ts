@@ -1,4 +1,5 @@
 import type { StreamSettings, StreamStats } from '../types';
+import { AUDIO_BITRATE, GAME_AUDIO_CONSTRAINTS, withGameAudio } from './audio';
 
 export async function offer(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
   const done = new Promise<void>((resolve, reject) => {
@@ -32,7 +33,7 @@ export async function offer(pc: RTCPeerConnection): Promise<RTCSessionDescriptio
   });
 
   void done.catch(() => {});
-  await pc.setLocalDescription(await pc.createOffer());
+  await pc.setLocalDescription(withGameAudio(await pc.createOffer()));
   await done;
 
   return pc.localDescription!.toJSON();
@@ -44,7 +45,7 @@ export async function capture(settings: StreamSettings) {
 
   const options = {
     video: { frameRate: { ideal: settings.fps, max: settings.fps }, displaySurface: 'window' },
-    audio: settings.audio !== 'off',
+    audio: settings.audio === 'off' ? false : GAME_AUDIO_CONSTRAINTS,
     windowAudio: settings.audio === 'system' ? 'system' : 'window',
     systemAudio: settings.audio === 'off' ? 'exclude' : 'include',
     selfBrowserSurface: 'exclude',
@@ -55,13 +56,7 @@ export async function capture(settings: StreamSettings) {
 
   for (const track of stream.getAudioTracks()) {
     track.contentHint = 'music';
-    await track
-      .applyConstraints({
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      })
-      .catch(() => {});
+    await track.applyConstraints(GAME_AUDIO_CONSTRAINTS).catch(() => {});
   }
 
   return stream;
@@ -76,7 +71,7 @@ export async function tune(pc: RTCPeerConnection, bitrate: number, fps: number) 
     if (sender.track?.kind === 'video') p.degradationPreference = 'maintain-framerate';
 
     for (const e of p.encodings) {
-      e.maxBitrate = sender.track?.kind === 'video' ? bitrate * 1_000_000 : 160_000;
+      e.maxBitrate = sender.track?.kind === 'video' ? bitrate * 1_000_000 : AUDIO_BITRATE;
 
       if (sender.track?.kind === 'video') e.maxFramerate = fps;
     }

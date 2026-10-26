@@ -45,6 +45,53 @@ async function decodedVideo(page) {
     return false;
   }), {timeout:25000}).toBe(true);
 }
+async function stereoAudio(page) {
+  await page.evaluate(async () => {
+    const context = new AudioContext({sampleRate:48000});
+    const stream = new MediaStream(document.querySelector('video').srcObject.getAudioTracks());
+    const source = context.createMediaStreamSource(stream);
+    const splitter = context.createChannelSplitter(2);
+    const silent = context.createGain();
+    silent.gain.value = 0;
+    silent.connect(context.destination);
+    const channels = [context.createAnalyser(),context.createAnalyser()];
+    source.connect(splitter);
+    channels.forEach((analyser,index) => {
+      analyser.fftSize = 8192;
+      splitter.connect(analyser,index);
+      analyser.connect(silent);
+    });
+    window.__testAudioMeter = {context,channels};
+    await context.resume();
+  });
+  try {
+    // The fixture sends 220 Hz on the left and 660 Hz on the right. Receiving
+    // energy alone misses a mono downmix; verify the two channels stay distinct.
+    await expect.poll(() => page.evaluate(() => {
+      const {context,channels} = window.__testAudioMeter;
+      const power = (analyser,frequency) => {
+        const samples = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(samples);
+        let real = 0;
+        let imaginary = 0;
+        for (let index = 0; index < samples.length; index++) {
+          const phase = 2 * Math.PI * frequency * index / context.sampleRate;
+          real += samples[index] * Math.cos(phase);
+          imaginary += samples[index] * Math.sin(phase);
+        }
+        return (real * real + imaginary * imaginary) / (samples.length * samples.length);
+      };
+      const left = [power(channels[0],220),power(channels[0],660)];
+      const right = [power(channels[1],220),power(channels[1],660)];
+      return left[0] > 1e-7 && right[1] > 1e-7 && left[0] > left[1] * 30 && right[1] > right[0] * 30;
+    }), {timeout:15000,message:'independent left/right game audio survives WebRTC forwarding'}).toBe(true);
+  } finally {
+    await page.evaluate(async () => {
+      await window.__testAudioMeter.context.close();
+      delete window.__testAudioMeter;
+    });
+  }
+}
 async function watchFits(page, viewport, screenshot) {
   await page.setViewportSize(viewport);
   await expect.poll(() => page.evaluate(() => {
@@ -168,6 +215,7 @@ try {
     }
     return false;
   }),{timeout:15000}).toBe(true);
+  await stereoAudio(viewer);
   await viewerSurvivesControlGlitches(viewer);
   const fullscreenButton = viewer.getByRole('button',{name:'Полный экран',exact:true});
   const exitFullscreenButton = viewer.getByRole('button',{name:'Выйти из полного экрана',exact:true});
@@ -282,6 +330,6 @@ try {
   })]);
   expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video and nonzero audio energy → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video, nonzero audio energy and independent left/right stereo → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
   writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }

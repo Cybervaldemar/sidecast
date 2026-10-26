@@ -42,11 +42,15 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
       const stream = canvas.captureStream(fps);
       let audioContext;
       if (options.audio && !(scenario === 'noaudio' && captureCalls === 1) && scenario !== 'noaudio-all') {
-        audioContext = new AudioContext();
-        const oscillator = audioContext.createOscillator(); oscillator.frequency.value = 220;
-        const gain = audioContext.createGain(); gain.gain.value = .03;
+        audioContext = new AudioContext({ sampleRate: 48000 });
+        const stereo = audioContext.createChannelMerger(2);
+        for (const [channel, frequency] of [220, 660].entries()) {
+          const oscillator = audioContext.createOscillator(); oscillator.frequency.value = frequency;
+          const gain = audioContext.createGain(); gain.gain.value = .03;
+          oscillator.connect(gain); gain.connect(stereo, 0, channel); oscillator.start();
+        }
         const destination = audioContext.createMediaStreamDestination();
-        oscillator.connect(gain); gain.connect(destination); oscillator.start();
+        stereo.connect(destination);
         stream.addTrack(destination.stream.getAudioTracks()[0]); await audioContext.resume();
       }
       const video = stream.getVideoTracks()[0];

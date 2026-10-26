@@ -80,6 +80,132 @@ func TestPacerHonorsRateAndRespondsToEstimate(t *testing.T) {
 	eventually(t, func() bool { return sent.Load() == 20 })
 }
 
+func TestPacerAudioDoesNotWaitBehindVideoBurst(t *testing.T) {
+	p := newViewerPacer(func() { t.Error("pacer unexpectedly closed") })
+	defer p.Close()
+	delivered := make(chan rtp.Header, 32)
+	writer := interceptor.RTPWriterFunc(func(h *rtp.Header, b []byte, _ interceptor.Attributes) (int, error) {
+		delivered <- *h
+		return len(b), nil
+	})
+	p.AddStream(1, writer)
+	p.AddStream(2, writer)
+	p.markAudio(2)
+	p.SetTargetBitrate(100_000)
+	p.start()
+	// At this estimate the 20 KB video burst needs over one second to
+	// drain. A FIFO would delay the audio until the 500 ms queue cutoff.
+	for seq := uint16(1); seq <= 20; seq++ {
+		if _, err := p.Write(&rtp.Header{SSRC: 1, SequenceNumber: seq}, make([]byte, 1000), nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for seq := uint16(1); seq <= 2; seq++ {
+		if _, err := p.Write(&rtp.Header{SSRC: 2, SequenceNumber: seq}, make([]byte, 160), nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var videoSequence, audioSequence uint16
+	deadline := time.After(300 * time.Millisecond)
+	for audioSequence < 2 {
+		select {
+		case header := <-delivered:
+			if header.SSRC == 1 {
+				videoSequence++
+				if header.SequenceNumber != videoSequence {
+					t.Fatal("video packets were reordered")
+				}
+			} else {
+				audioSequence++
+				if header.SequenceNumber != audioSequence {
+					t.Fatal("audio packets were reordered")
+				}
+			}
+		case <-deadline:
+			t.Fatal("audio was held behind the video burst")
+		}
+	}
+	if videoSequence == 20 {
+		t.Fatal("audio was sent after the entire video burst")
+	}
+	p.SetTargetBitrate(40_000_000)
+	deadline = time.After(time.Second)
+	for videoSequence < 20 {
+		select {
+		case header := <-delivered:
+			videoSequence++
+			if header.SSRC != 1 || header.SequenceNumber != videoSequence {
+				t.Fatal("video burst was lost or reordered")
+			}
+		case <-deadline:
+			t.Fatal("video burst did not drain")
+		}
+	}
+}
+
+func TestPacerAudioSharesRateAndQueueLimits(t *testing.T) {
+	var sent atomic.Int32
+	failed := make(chan struct{}, 1)
+	p := newViewerPacer(func() { failed <- struct{}{} })
+	defer p.Close()
+	p.AddStream(2, interceptor.RTPWriterFunc(func(_ *rtp.Header, b []byte, _ interceptor.Attributes) (int, error) {
+		sent.Add(1)
+		return len(b), nil
+	}))
+	p.markAudio(2)
+	p.SetTargetBitrate(100_000)
+	p.start()
+	for range 20 {
+		if _, err := p.Write(&rtp.Header{SSRC: 2}, make([]byte, 1000), nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	time.Sleep(80 * time.Millisecond)
+	if n := sent.Load(); n > 3 {
+		t.Fatalf("audio bypassed the pacing budget: %d packets", n)
+	}
+	if _, err := p.Write(&rtp.Header{SSRC: 2}, make([]byte, viewerQueueBytes), nil); !errors.Is(err, io.ErrShortBuffer) {
+		t.Fatalf("audio bypassed the queue capacity: %v", err)
+	}
+	select {
+	case <-failed:
+	case <-time.After(time.Second):
+		t.Fatal("audio overflow did not close viewer")
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.bytes != 0 || p.queue.Len()+p.audioQueue.Len() != 0 {
+		t.Fatal("closed pacer retained audio payloads")
+	}
+}
+
+func TestPacerAudioPriorityDoesNotHideStaleVideo(t *testing.T) {
+	failed := make(chan struct{}, 1)
+	audioSent := make(chan struct{}, 1)
+	p := newViewerPacer(func() { failed <- struct{}{} })
+	defer p.Close()
+	p.AddStream(2, interceptor.RTPWriterFunc(func(_ *rtp.Header, b []byte, _ interceptor.Attributes) (int, error) {
+		audioSent <- struct{}{}
+		return len(b), nil
+	}))
+	p.mu.Lock()
+	p.started = true
+	p.queue.PushBack(pacedPacket{queued: time.Now().Add(-viewerQueueDelay - time.Second), size: 100})
+	p.audioQueue.PushBack(pacedPacket{header: rtp.Header{SSRC: 2}, queued: time.Now(), size: 100})
+	p.bytes = 200
+	p.mu.Unlock()
+	select {
+	case <-failed:
+	case <-time.After(time.Second):
+		t.Fatal("audio priority concealed stale video")
+	}
+	select {
+	case <-audioSent:
+		t.Fatal("pacer continued sending while video exceeded the queue deadline")
+	default:
+	}
+}
+
 func TestPacerBoundsMemoryAndClosesOnlyOnce(t *testing.T) {
 	failed := make(chan struct{}, 2)
 	p := newViewerPacer(func() { failed <- struct{}{} })
