@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"sidecast/internal/update"
 )
 
 func TestApplicationControls(t *testing.T) {
@@ -103,5 +105,43 @@ func TestProxiedControlsDenied(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestUpdateControlsRequireLocalCapability(t *testing.T) {
+	handler := WithControls(http.NotFoundHandler(), func() {}, update.New(func() {}))
+	request := func(method, path, peer, host, token string) *httptest.ResponseRecorder {
+		t.Helper()
+		r := httptest.NewRequest(method, "http://localhost:8080"+path, nil)
+		r.RemoteAddr, r.Host = peer, host
+		r.Header.Set("Authorization", "Bearer "+token)
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	response := request("GET", "/api/app", "127.0.0.1:1234", "localhost:8080", "")
+	var capability struct{ ShutdownToken string }
+	if err := json.Unmarshal(response.Body.Bytes(), &capability); err != nil || capability.ShutdownToken == "" {
+		t.Fatalf("missing capability: %s (%v)", response.Body, err)
+	}
+	for _, path := range []string{"/api/app/update"} {
+		for _, method := range []string{"GET", "POST"} {
+			for _, denied := range []struct{ peer, host, token string }{
+				{"192.168.1.5:1234", "localhost:8080", capability.ShutdownToken},
+				{"127.0.0.1:1234", "192.168.1.5:8080", capability.ShutdownToken},
+				{"127.0.0.1:1234", "localhost:8080", ""},
+			} {
+				response := request(method, path, denied.peer, denied.host, denied.token)
+				if response.Code != http.StatusForbidden {
+					t.Errorf("%s update control accepted remote or unauthenticated caller: %d", method, response.Code)
+				}
+			}
+		}
+	}
+	if response := request("GET", "/api/app/update", "127.0.0.1:1234", "localhost:8080", capability.ShutdownToken); response.Code != http.StatusOK {
+		t.Fatalf("local update status: %d", response.Code)
+	}
+	if response := request("POST", "/api/app/update", "127.0.0.1:1234", "localhost:8080", capability.ShutdownToken); response.Code != http.StatusConflict {
+		t.Fatalf("development build should not update: %d", response.Code)
 	}
 }

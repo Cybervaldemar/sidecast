@@ -13,6 +13,7 @@ import (
 	"sidecast/internal/channels"
 	"sidecast/internal/media"
 	"sidecast/internal/network"
+	"sidecast/internal/update"
 )
 
 type Config struct {
@@ -39,7 +40,7 @@ func New(store *channels.Store, hub *media.Hub, config Config, assets fs.FS) htt
 		reply(w, 200, config)
 	})
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) {
-		reply(w, 200, map[string]string{"status": "ok", "version": "2.0.0-alpha.1"})
+		reply(w, 200, map[string]string{"status": "ok", "version": update.Version})
 	})
 	mux.HandleFunc("GET /api/channels/{nick}", s.status)
 	mux.HandleFunc("PUT /api/channels/{nick}", s.claim)

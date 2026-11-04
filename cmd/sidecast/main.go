@@ -21,6 +21,7 @@ import (
 	"sidecast/internal/desktop"
 	"sidecast/internal/httpapi"
 	"sidecast/internal/media"
+	"sidecast/internal/update"
 	"sidecast/web"
 )
 
@@ -37,6 +38,10 @@ func main() {
 }
 
 func run() error {
+	if len(os.Args) > 1 && os.Args[1] == "--apply-update" {
+		return update.Apply()
+	}
+	update.CleanupHelper()
 	listen := flag.String("listen", ":8080", "HTTP(S) listen address")
 	data := flag.String("data", desktop.DataDirectory(), "Persistent channel storage directory")
 	flag.BoolVar(&noTray, "no-tray", false, "Run without the Windows tray icon (services and automation)")
@@ -92,7 +97,8 @@ func run() error {
 	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers}, web.Assets())
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	server := &http.Server{Addr: *listen, Handler: desktop.WithControls(app, cancel), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
+	updater := update.New(cancel)
+	server := &http.Server{Addr: *listen, Handler: desktop.WithControls(app, cancel, updater), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		return fmt.Errorf("start Sidecast: %w", err)
@@ -110,7 +116,7 @@ func run() error {
 			_ = server.Close()
 		}
 	}()
-	fmt.Printf("Sidecast v2 · listening on %s · data: %s\n", *listen, *data)
+	fmt.Printf("Sidecast %s · listening on %s · data: %s\n", update.Version, *listen, *data)
 	if studio != "" {
 		fmt.Printf("Sidecast studio: %s\n", studio)
 	}
@@ -126,9 +132,16 @@ func run() error {
 		cancel()
 	}()
 	if noTray {
-		<-ctx.Done()
+		err = update.WaitAndSignalReady(ctx, studio)
+		if err != nil {
+			cancel()
+		} else {
+			<-ctx.Done()
+		}
 	} else {
-		err = desktop.Run(ctx, studio, cancel)
+		err = desktop.Run(ctx, studio, cancel, !update.Restarted(), func() error {
+			return update.WaitAndSignalReady(ctx, studio)
+		})
 		cancel()
 	}
 	<-shutdownDone

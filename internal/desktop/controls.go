@@ -8,13 +8,18 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"sidecast/internal/update"
 )
 
 // WithControls exposes process controls only to a browser on this computer.
 // A fresh capability for each launch also protects against cross-origin POSTs.
-func WithControls(next http.Handler, stop func()) http.Handler {
+func WithControls(next http.Handler, stop func(), updater ...*update.Manager) http.Handler {
 	secret := rand.Text()
 	mux := http.NewServeMux()
+	authorized := func(r *http.Request) bool {
+		return localRequest(r) && subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) == 1
+	}
 	mux.HandleFunc("GET /api/app", func(w http.ResponseWriter, r *http.Request) {
 		token := ""
 		if localRequest(r) {
@@ -26,7 +31,7 @@ func WithControls(next http.Handler, stop func()) http.Handler {
 		_ = json.NewEncoder(w).Encode(map[string]string{"shutdownToken": token})
 	})
 	mux.HandleFunc("POST /api/app/shutdown", func(w http.ResponseWriter, r *http.Request) {
-		if !localRequest(r) || subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Bearer "+secret)) != 1 {
+		if !authorized(r) {
 			http.Error(w, "local application control required", http.StatusForbidden)
 			return
 		}
@@ -36,8 +41,49 @@ func WithControls(next http.Handler, stop func()) http.Handler {
 		_ = http.NewResponseController(w).Flush()
 		stop()
 	})
+	if len(updater) > 0 && updater[0] != nil {
+		manager := updater[0]
+		mux.HandleFunc("GET /api/app/update", func(w http.ResponseWriter, r *http.Request) {
+			if !authorized(r) {
+				http.Error(w, "local application control required", http.StatusForbidden)
+				return
+			}
+			state, err := manager.Check(r.Context())
+			if err != nil {
+				controlReply(w, http.StatusServiceUnavailable, map[string]string{"error": "update_check_failed"})
+				return
+			}
+			controlReply(w, http.StatusOK, state)
+		})
+		mux.HandleFunc("POST /api/app/update", func(w http.ResponseWriter, r *http.Request) {
+			if !authorized(r) {
+				http.Error(w, "local application control required", http.StatusForbidden)
+				return
+			}
+			if err := manager.Start(r.Context()); err != nil {
+				status := http.StatusServiceUnavailable
+				code := "update_check_failed"
+				if err == update.ErrUnavailable {
+					status, code = http.StatusConflict, "update_unavailable"
+				} else if err == update.ErrBusy {
+					status, code = http.StatusConflict, "update_in_progress"
+				}
+				controlReply(w, status, map[string]string{"error": code})
+				return
+			}
+			controlReply(w, http.StatusAccepted, map[string]string{"status": "downloading"})
+		})
+	}
 	mux.Handle("/", next)
 	return mux
+}
+
+func controlReply(w http.ResponseWriter, status int, value any) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(value)
 }
 
 func localRequest(r *http.Request) bool {

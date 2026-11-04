@@ -134,11 +134,15 @@ func makeIcon() (uintptr, error) {
 	return 0, fmt.Errorf("application icon has no %dpx image", size)
 }
 
-func Run(ctx context.Context, address string, stop context.CancelFunc) error {
-	return run(ctx, address, stop, openBrowser)
+func Run(ctx context.Context, address string, stop context.CancelFunc, openOnStart bool, ready func() error) error {
+	return runWithStartup(ctx, address, stop, openBrowser, openOnStart, ready)
 }
 
 func run(ctx context.Context, address string, stop context.CancelFunc, open func(string)) error {
+	return runWithStartup(ctx, address, stop, open, true, nil)
+}
+
+func runWithStartup(ctx context.Context, address string, stop context.CancelFunc, open func(string), startup bool, ready func() error) error {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 	icon, err := makeIcon()
@@ -230,6 +234,11 @@ func run(ctx context.Context, address string, stop context.CancelFunc, open func
 		return fmt.Errorf("show tray icon: %w", err)
 	}
 	defer notifyIcon.Call(2, uintptr(unsafe.Pointer(&data)))
+	if ready != nil {
+		if err := ready(); err != nil {
+			return err
+		}
+	}
 	finished := make(chan struct{})
 	defer close(finished)
 	go func() {
@@ -239,7 +248,7 @@ func run(ctx context.Context, address string, stop context.CancelFunc, open func
 		case <-finished:
 		}
 	}()
-	if ctx.Err() == nil {
+	if startup && ctx.Err() == nil {
 		open(address)
 	}
 	var event message

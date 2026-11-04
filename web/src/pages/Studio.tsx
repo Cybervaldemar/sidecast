@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Circle, Power, Radio, Square } from 'lucide-react';
+import { CheckCircle2, Circle, Download, Power, Radio, Square } from 'lucide-react';
 import { ChannelCard } from '../components/ChannelCard';
 import { StreamSettings } from '../components/StreamSettings';
 import { VideoStage } from '../components/VideoStage';
@@ -31,6 +31,7 @@ export function Studio({
   const stats = usePeerStats(publisher.pc, true);
   const { status, reachable } = useChannelStatus(identity?.nickname ?? '');
 
+  const updating = application.updatePhase !== 'idle';
   const busy = publisher.phase !== 'idle' || application.stopping;
   const live = publisher.phase === 'live';
 
@@ -70,7 +71,7 @@ export function Studio({
           {application.available && (
             <button
               className="button secondary shutdown-button"
-              disabled={application.stopping}
+              disabled={application.stopping || updating}
               onClick={() => void shutdown()}
               title="Завершить эфир и полностью закрыть Sidecast"
             >
@@ -81,6 +82,60 @@ export function Studio({
         </div>
       </header>
       <main className="studio-content host-studio">
+        {application.available && application.updateInfo?.available && (
+          <section className="card update-notice" aria-label="Обновление Sidecast">
+            <span className="update-notice-icon">
+              <Download size={19} />
+            </span>
+            <div className="update-notice-content">
+              <h2>Доступна новая версия Sidecast {application.updateInfo.latestVersion}</h2>
+              <p>
+                Установлена {application.updateInfo.currentVersion}.{' '}
+                {application.updateInfo.canUpdate
+                  ? 'Хотите обновить приложение?'
+                  : 'Скачайте новый файл из релиза GitHub.'}
+              </p>
+              {updating && (
+                <p role="status">
+                  {application.updatePhase === 'downloading'
+                    ? 'Загружаем и проверяем обновление… Эфир продолжится до перезапуска.'
+                    : 'Перезапускаем приложение… Эта вкладка обновится автоматически.'}
+                </p>
+              )}
+              {!updating &&
+                (application.updateError || application.updateInfo.status === 'failed') && (
+                  <p className="update-notice-error" role="alert">
+                    {application.updateError ||
+                      application.updateInfo.error ||
+                      'Не удалось установить обновление.'}{' '}
+                    Можно скачать релиз вручную.
+                  </p>
+                )}
+            </div>
+            <div className="update-notice-actions">
+              {application.updateInfo.canUpdate && (
+                <button
+                  className="button primary"
+                  disabled={updating || application.stopping}
+                  onClick={() => void application.update()}
+                >
+                  <Download size={15} />
+                  {updating ? 'Обновляем…' : 'Обновить'}
+                </button>
+              )}
+              {application.updateInfo.releaseUrl && (
+                <a
+                  className="update-release-link"
+                  href={application.updateInfo.releaseUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Открыть релиз
+                </a>
+              )}
+            </div>
+          </section>
+        )}
         {application.error && (
           <p className="error shutdown-error" role="alert">
             Не удалось выключить приложение. {application.error}
@@ -93,7 +148,7 @@ export function Studio({
                 identity={null}
                 config={config}
                 onIdentity={remember}
-                disabled={!config || busy}
+                disabled={!config || busy || updating}
               />
             )}
             <section className="card preview-card">
@@ -130,7 +185,12 @@ export function Studio({
                 </div>
                 <button
                   className={`button ${busy ? 'stop' : 'primary'}`}
-                  disabled={!identity || !config || application.stopping}
+                  disabled={
+                    !identity ||
+                    !config ||
+                    application.stopping ||
+                    (updating && publisher.phase === 'idle')
+                  }
                   onClick={() => (busy ? publisher.stop() : void publisher.start(settings))}
                 >
                   {busy ? <Square size={15} fill="currentColor" /> : <Radio size={17} />}
@@ -148,7 +208,7 @@ export function Studio({
                 identity={identity}
                 config={config}
                 onIdentity={remember}
-                disabled={!config || busy}
+                disabled={!config || busy || updating}
               />
             )}
             {saveError && (
@@ -158,7 +218,7 @@ export function Studio({
             )}
           </div>
           <div className="side-column">
-            <StreamSettings value={settings} onChange={setSettings} disabled={busy} />
+            <StreamSettings value={settings} onChange={setSettings} disabled={busy || updating} />
           </div>
         </div>
       </main>

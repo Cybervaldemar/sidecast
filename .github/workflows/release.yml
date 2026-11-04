@@ -17,6 +17,8 @@ jobs:
         with:
           go-version-file: go.mod
       - run: npm ci
+      - name: Verify tag matches application version
+        run: test "$GITHUB_REF_NAME" = "v$(node -p "require('./package.json').version")"
       - run: npm run build
       - run: go vet ./...
       - run: go test -race ./...
@@ -29,4 +31,4 @@ jobs:
             build/THIRD_PARTY_NOTICES.txt
             build/SHA256SUMS
           generate_release_notes: true
-          prerelease: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
