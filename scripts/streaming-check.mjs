@@ -1,4 +1,4 @@
-// Isolated 1080p60 motion test. Packet loss applies only to this test browser.
+// Isolated native-resolution motion test. Packet loss applies only to this test browser.
 import { chromium, expect } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -14,7 +14,14 @@ const binary = resolve(
 const directory = mkdtempSync(resolve(tmpdir(), 'sidecast-streaming-'));
 const seconds = Number(process.env.SIDECAST_TEST_SECONDS || 25);
 const loss = Number(process.env.SIDECAST_PACKET_LOSS || 0.5);
-const bitrates = (process.env.SIDECAST_TEST_BITRATES || '12,20,40').split(',').map(Number);
+const bitrates = (process.env.SIDECAST_TEST_BITRATES || '6,12,20').split(',').map(Number);
+const width = Number(process.env.SIDECAST_TEST_WIDTH || 2560);
+const height = Number(process.env.SIDECAST_TEST_HEIGHT || 1440);
+const videoPriority = process.env.SIDECAST_VIDEO_PRIORITY || 'resolution';
+if (!Number.isFinite(seconds) || seconds < 3)
+  throw new Error('SIDECAST_TEST_SECONDS must be at least 3');
+if (!['resolution', 'motion'].includes(videoPriority))
+  throw new Error('Invalid SIDECAST_VIDEO_PRIORITY');
 if (!existsSync(binary)) throw new Error('Build Sidecast before running the streaming check');
 const server = spawn(binary, ['--no-tray', '--listen', ':0', '--data', directory], {
   windowsHide: true,
@@ -31,6 +38,27 @@ server.stderr.on('data', (chunk) => {
 let browser;
 const results = [];
 
+function writeReport() {
+  writeFileSync(
+    resolve(directory, 'results.json'),
+    JSON.stringify(
+      {
+        seconds,
+        loss,
+        binary,
+        width,
+        height,
+        videoPriority,
+        results,
+        serverErrors,
+        serverOutput: output,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
 async function snapshot(page, outbound) {
   return page.evaluate(async (outbound) => {
     const peer = window.__testPeers.at(-1);
@@ -40,6 +68,12 @@ async function snapshot(page, outbound) {
       (value) =>
         value.type === (outbound ? 'outbound-rtp' : 'inbound-rtp') && value.kind === 'video',
     );
+    const audio = [...reports.values()].find(
+      (value) =>
+        value.type === (outbound ? 'outbound-rtp' : 'inbound-rtp') && value.kind === 'audio',
+    );
+    const videoSender = peer.getSenders().find((sender) => sender.track?.kind === 'video');
+    const audioSender = peer.getSenders().find((sender) => sender.track?.kind === 'audio');
     if (!report) return { connections: window.__testPeers.length, state: peer.connectionState };
     const keys = [
       'bytesSent',
@@ -47,17 +81,23 @@ async function snapshot(page, outbound) {
       'packetsReceived',
       'packetsLost',
       'framesEncoded',
+      'framesSent',
       'framesDecoded',
       'framesDropped',
       'framesPerSecond',
       'freezeCount',
       'totalFreezesDuration',
       'totalEncodeTime',
+      'qpSum',
+      'targetBitrate',
+      'totalPacketSendDelay',
       'keyFramesDecoded',
       'nackCount',
       'pliCount',
       'retransmittedPacketsSent',
       'qualityLimitationReason',
+      'qualityLimitationResolutionChanges',
+      'qualityLimitationDurations',
       'jitter',
       'jitterBufferDelay',
       'jitterBufferEmittedCount',
@@ -70,6 +110,29 @@ async function snapshot(page, outbound) {
       codec: reports.get(report.codecId)?.mimeType,
       connections: window.__testPeers.length,
       state: peer.connectionState,
+      sender: videoSender?.getParameters(),
+      source: videoSender?.track.getSettings(),
+      sourceStats: reports.get(report.mediaSourceId),
+      fixture: window.__testCapture && {
+        ...window.__testCapture,
+        now: performance.now(),
+        hidden: document.hidden,
+      },
+      bandwidth: [...reports.values()].find(
+        (value) =>
+          value.type === 'candidate-pair' && value.nominated && value.state === 'succeeded',
+      )?.availableOutgoingBitrate,
+      audio: audio && {
+        bytes: outbound ? audio.bytesSent : audio.bytesReceived,
+        packetsLost: audio.packetsLost,
+        jitter: audio.jitter,
+        concealedSamples: audio.concealedSamples,
+        totalSamplesReceived: audio.totalSamplesReceived,
+        totalAudioEnergy: audio.totalAudioEnergy,
+        codec: reports.get(audio.codecId),
+        sender: audioSender?.getParameters(),
+        source: audioSender?.track.getSettings(),
+      },
     };
   }, outbound);
 }
@@ -106,7 +169,9 @@ try {
     readFileSync(new URL('./fixtures/capture.js', import.meta.url), 'utf8'),
   );
   const studio = await source.newPage();
-  await studio.goto(`${origin}/studio?capture=motion`);
+  await studio.goto(
+    `${origin}/studio?capture=motion&captureWidth=${width}&captureHeight=${height}`,
+  );
   await studio.getByLabel('Никнейм', { exact: true }).fill('motion-check');
   await studio.getByRole('button', { name: 'Создать канал', exact: true }).click();
   const viewer = await viewerContext.newPage();
@@ -126,15 +191,65 @@ try {
     ],
   });
   console.log(
-    `Streaming artifacts: ${directory}; Chrome ${browser.version()}; simulated packet loss ${loss}%`,
+    `Streaming artifacts: ${directory}; Chrome ${browser.version()}; ${width}x${height}, ${videoPriority} priority; simulated packet loss ${loss}%`,
   );
+  await studio.locator('#video-priority').selectOption(videoPriority);
   for (const bitrate of bitrates) {
     await studio.locator('#bitrate').selectOption(String(bitrate));
     await studio.getByRole('button', { name: 'Начать трансляцию', exact: true }).click();
-    await expect(studio.getByText('Вы в эфире', { exact: true })).toBeVisible({ timeout: 25000 });
-    await expect
-      .poll(async () => (await snapshot(viewer, false)).framesDecoded || 0, { timeout: 25000 })
-      .toBeGreaterThan(60);
+    const warmupSamples = [];
+    const warmupStarted = Date.now();
+    let warmupStage = 'video';
+    try {
+      await expect(studio.getByText('Вы в эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+      await expect
+        .poll(
+          async () => {
+            const [publisher, receiver] = await Promise.all([
+              snapshot(studio, true),
+              snapshot(viewer, false),
+            ]);
+            warmupSamples.push({ elapsedMs: Date.now() - warmupStarted, publisher, receiver });
+
+            return receiver.framesDecoded || 0;
+          },
+          { timeout: 25000, intervals: [1000] },
+        )
+        .toBeGreaterThan(60);
+      warmupStage = 'audio';
+      if (await viewer.locator('video').evaluate((video) => video.muted))
+        await viewer.getByRole('button', { name: 'Включить звук', exact: true }).click();
+      await expect.poll(() => viewer.locator('video').evaluate((video) => video.muted)).toBe(false);
+      await expect
+        .poll(async () => (await snapshot(viewer, false)).audio?.totalAudioEnergy || 0, {
+          timeout: 10000,
+        })
+        .toBeGreaterThan(0);
+    } catch (error) {
+      const latest = await Promise.allSettled([snapshot(studio, true), snapshot(viewer, false)]);
+      const finalSnapshot = Object.fromEntries(
+        ['publisher', 'receiver'].map((side, index) => [
+          side,
+          latest[index].status === 'fulfilled'
+            ? latest[index].value
+            : { error: String(latest[index].reason) },
+        ]),
+      );
+      results.push({
+        passed: false,
+        stage: `${warmupStage}-warmup`,
+        capMbps: bitrate,
+        failures: [String(error)],
+        durationSeconds: (Date.now() - warmupStarted) / 1000,
+        sampleCount: warmupSamples.length,
+        ...finalSnapshot,
+        samples: warmupSamples,
+      });
+      writeReport();
+      console.error(`Streaming warm-up failed; diagnostics: ${resolve(directory, 'results.json')}`);
+
+      throw error;
+    }
     await viewer.bringToFront();
     await viewer.evaluate(() => {
       window.__presentation = { last: 0, maxGap: 0, frames: 0 };
@@ -192,7 +307,31 @@ try {
       return value == null ? null : (value * scale) / duration;
     };
     const encoded = difference('publisher', 'framesEncoded');
+    const failures = [];
+    if (videoPriority === 'resolution') {
+      for (const side of ['publisher', 'receiver']) {
+        const dimensions = samples.map((sample) => [
+          sample[side].frameWidth,
+          sample[side].frameHeight,
+        ]);
+        if (
+          dimensions.some(
+            ([sampleWidth, sampleHeight]) => sampleWidth !== width || sampleHeight !== height,
+          )
+        )
+          failures.push(
+            `${side} changed resolution: ${JSON.stringify([...new Set(dimensions.map((size) => size.join('x')))])}`,
+          );
+      }
+    }
+    if (last.receiver.audio?.totalAudioEnergy == null || last.receiver.audio.totalAudioEnergy <= 0)
+      failures.push('Viewer did not decode audible audio');
     const result = {
+      passed: failures.length === 0,
+      failures,
+      width,
+      height,
+      videoPriority,
       capMbps: bitrate,
       durationSeconds: duration,
       codec: last.receiver.codec,
@@ -212,20 +351,31 @@ try {
       qualityLimitations: [
         ...new Set(samples.map((sample) => sample.publisher.qualityLimitationReason)),
       ],
+      resolutions: Object.fromEntries(
+        ['publisher', 'receiver'].map((side) => [
+          side,
+          [
+            ...new Set(
+              samples.map((sample) => `${sample[side].frameWidth}x${sample[side].frameHeight}`),
+            ),
+          ],
+        ]),
+      ),
+      audio: last.receiver.audio,
       peersBefore: first.receiver.connections,
       peersAfter: last.receiver.connections,
       samples,
     };
     results.push(result);
-    writeFileSync(
-      resolve(directory, 'results.json'),
-      JSON.stringify({ seconds, loss, binary, results, serverErrors }, null, 2),
-    );
+    writeReport();
     console.log(JSON.stringify({ ...result, samples: undefined }));
     await studio.getByRole('button', { name: 'Завершить эфир', exact: true }).click();
     await expect(
       viewer.getByRole('heading', { name: 'motion-check сейчас не в эфире' }),
     ).toBeVisible({ timeout: 10000 });
+    expect(failures, `Streaming regression at ${bitrate} Mbit/s; details: ${directory}`).toEqual(
+      [],
+    );
   }
   console.log(`Results: ${resolve(directory, 'results.json')}`);
 } finally {

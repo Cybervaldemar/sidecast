@@ -21,7 +21,12 @@ export function Studio({
   const application = useApplication();
   const [identity, setIdentity] = useState(loadIdentity);
   const [saveError, setSaveError] = useState('');
-  const [settings, setSettings] = useState<Settings>({ fps: 60, bitrate: 12, audio: 'window' });
+  const [settings, setSettings] = useState<Settings>({
+    fps: 60,
+    bitrate: 20,
+    videoPriority: 'motion',
+    audio: 'window',
+  });
   const publisher = usePublisher(identity, config);
   const stats = usePeerStats(publisher.pc, true);
   const { status, reachable } = useChannelStatus(identity?.nickname ?? '');

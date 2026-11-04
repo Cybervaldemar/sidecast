@@ -31,6 +31,7 @@ async function stopServer() {
   }
 }
 async function ready() {
+  await expect.poll(() => serverOutput,{timeout:15000}).toContain('Sidecast studio:');
   await expect.poll(async () => { try { return (await fetch(`${origin}/api/health`)).status; } catch { return 0; } },{timeout:15000}).toBe(200);
 }
 async function decodedVideo(page) {
@@ -160,10 +161,19 @@ try {
   studioContext.on('page',page => page.on('pageerror',error => errors.push(error.message)));
   const captureScript = readFileSync(new URL('./fixtures/capture.js',import.meta.url),'utf8');
   await studioContext.addInitScript(captureScript);
+  await studioContext.addInitScript(() => {
+    window.__testPeers = [];
+    const Original = window.RTCPeerConnection;
+    window.RTCPeerConnection = class extends Original { constructor(...args) { super(...args); window.__testPeers.push(this); } };
+  });
   const studio = await studioContext.newPage(); await studio.goto(origin);
   await expect(studio).toHaveTitle('Sidecast — студия трансляций');
   await expect(studio.getByRole('link', { name: 'Sidecast — главная', exact: true })).toBeVisible();
   await expect(studio.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
+  await expect(studio.locator('#video-priority')).toHaveValue('motion');
+  expect(await studio.locator('#bitrate option').evaluateAll(options => options.map(option => Number(option.value)))).toEqual([6,12,20,40]);
+  await studio.locator('#bitrate').selectOption('40');
+  await expect(studio.locator('#bitrate')).toHaveValue('40');
   await studio.screenshot({path:resolve(output,'studio-empty.png'),fullPage:true});
   await studio.getByLabel('Никнейм',{exact:true}).fill('test-streamer');
   await studio.getByRole('button',{name:'Создать канал',exact:true}).click();
@@ -187,6 +197,10 @@ try {
   await viewer.setViewportSize({width:1440,height:900});
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
+  await expect.poll(() => studio.evaluate(() => {
+    const sender = window.__testPeers.at(-1)?.getSenders().find(value => value.track?.kind === 'video');
+    return sender?.getParameters().encodings[0]?.maxBitrate;
+  })).toBe(40_000_000);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.videoWidth),{timeout:25000}).toBe(1920);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames),{timeout:10000}).toBeGreaterThan(10);
   await expect(viewer.locator('.watch-player').getByRole('status')).toHaveText(/в эфире/i);

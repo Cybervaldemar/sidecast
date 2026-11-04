@@ -4,13 +4,18 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
     configurable: true,
     value: async options => {
       captureCalls++;
-      const scenario = new URL(location.href).searchParams.get('capture');
+      const query = new URL(location.href).searchParams;
+      const scenario = query.get('capture');
       if (scenario === 'cancel') throw new DOMException('Test cancellation', 'NotAllowedError');
-      const canvas = document.createElement('canvas'); canvas.width = 1920; canvas.height = 1080;
+      const width = Number(query.get('captureWidth') || 1920);
+      const height = Number(query.get('captureHeight') || 1080);
+      if (!Number.isInteger(width) || !Number.isInteger(height) || width < 320 || height < 180 || width > 3840 || height > 2160)
+        throw new Error('Invalid synthetic capture dimensions');
+      const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height;
       const context = canvas.getContext('2d');
       let texture;
       if (scenario === 'motion') {
-        texture = document.createElement('canvas'); texture.width = 2560; texture.height = 1440;
+        texture = document.createElement('canvas'); texture.width = width + 640; texture.height = height + 360;
         const pixels = texture.getContext('2d');
         let seed = 12345;
         for (let y = 0; y < texture.height; y += 16) for (let x = 0; x < texture.width; x += 16) {
@@ -19,25 +24,32 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
           pixels.fillRect(x, y, 16, 16);
         }
       }
+      const fps = options.video.frameRate.max;
+      window.__testCapture = { width, height, fps, startedAt: performance.now(), framesDrawn: 0, lastDrawAt: 0 };
       let frame = 0;
       const draw = () => {
         frame++;
-        context.fillStyle = '#11151f'; context.fillRect(0, 0, 1920, 1080);
+        window.__testCapture.framesDrawn = frame;
+        window.__testCapture.lastDrawAt = performance.now();
+        context.setTransform(1, 0, 0, 1, 0, 0);
+        context.fillStyle = '#11151f'; context.fillRect(0, 0, width, height);
         if (texture) {
-          context.drawImage(texture,(frame * 9) % 640,(frame * 5) % 360,1920,1080,0,0,1920,1080);
+          context.drawImage(texture,(frame * 9) % 640,(frame * 5) % 360,width,height,0,0,width,height);
+        }
+        context.scale(width / 1920, height / 1080);
+        if (texture) {
           context.fillStyle = '#11151fcc'; context.fillRect(75,90,1300,280);
         }
         context.fillStyle = '#b9a2ff'; context.font = 'bold 90px Segoe UI';
         context.fillText('SIDECAST / LIVE TEST', 110, 220);
         context.fillStyle = '#91d6a0'; context.font = '50px Segoe UI';
-        context.fillText('1920 × 1080 · VIDEO + AUDIO', 110, 330);
+        context.fillText(`${width} × ${height} · VIDEO + AUDIO`, 110, 330);
         context.fillStyle = '#66588f'; context.fillRect(110, 460, 1700, 12);
         context.fillStyle = '#b9a2ff'; context.fillRect(110, 460, (frame * 9) % 1700, 12);
         context.fillStyle = '#92919f'; context.font = '40px Consolas';
         context.fillText(`FRAME ${frame}`, 110, 620);
       };
       draw();
-      const fps = options.video.frameRate.max;
       const timer = setInterval(draw, 1000 / fps);
       const stream = canvas.captureStream(fps);
       let audioContext;
@@ -54,7 +66,7 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
         stream.addTrack(destination.stream.getAudioTracks()[0]); await audioContext.resume();
       }
       const video = stream.getVideoTracks()[0];
-      Object.defineProperty(video, 'label', { value: 'Тестовая игра · 1920×1080' });
+      Object.defineProperty(video, 'label', { value: `Тестовая игра · ${width}×${height}` });
       for (const track of stream.getTracks()) {
         const stop = track.stop.bind(track);
         track.stop = () => {

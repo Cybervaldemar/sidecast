@@ -8,11 +8,10 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
-// At 40 Mbit/s the default 1024-packet history can disappear in about 250 ms.
-// Keep roughly one second, including packets waiting in the bounded pacer, so
-// Wi-Fi jitter and large frames do not prevent retransmission. This is a repair
+// Keep history for packet bursts, including packets waiting in the bounded pacer,
+// so Wi-Fi jitter and large frames do not prevent retransmission. This is a repair
 // cache, not a playout buffer: it does not add latency to the stream.
-const recoveryPackets = 4096
+const recoveryPackets = 16384
 
 func registerMediaInterceptors(engine *webrtc.MediaEngine, registry *interceptor.Registry) error {
 	return webrtc.RegisterDefaultInterceptorsWithOptions(engine, registry,

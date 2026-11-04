@@ -16,6 +16,10 @@ const (
 	viewerQueuePackets = 8192
 	viewerQueueDelay   = 500 * time.Millisecond
 	pacingInterval     = 5 * time.Millisecond
+	// The aggregate transport budget includes headers, audio, repairs and bursts.
+	// This allowance is independent of the selectable video bitrate modes.
+	viewerMaxTransportBitrate = 200_000_000
+	viewerMaxPacingBitrate    = viewerMaxTransportBitrate * 3 / 2
 )
 
 type pacedPacket struct {
@@ -85,7 +89,7 @@ func (p *viewerPacer) addRTX(primary, retransmission uint32) {
 func (p *viewerPacer) SetTargetBitrate(rate int) {
 	p.mu.Lock()
 	// Leave headroom for RTP headers, audio and retransmissions.
-	p.rate = max(150_000, min(rate, 80_000_000)*3/2)
+	p.rate = max(150_000, min(rate, viewerMaxTransportBitrate)*3/2)
 	p.mu.Unlock()
 }
 
@@ -107,7 +111,7 @@ func (p *viewerPacer) effectiveRateLocked() int {
 	if !p.congestedSince.IsZero() && time.Since(p.congestedSince) >= time.Second {
 		return p.rate
 	}
-	return max(p.rate, min(p.sourceRate*3/2, 120_000_000))
+	return max(p.rate, min(p.sourceRate*3/2, viewerMaxPacingBitrate))
 }
 
 func (p *viewerPacer) Write(header *rtp.Header, payload []byte, attributes interceptor.Attributes) (int, error) {
@@ -128,7 +132,7 @@ func (p *viewerPacer) Write(header *rtp.Header, payload []byte, attributes inter
 	}
 	p.inputBytes += size
 	if elapsed := now.Sub(p.inputWindow); elapsed >= 100*time.Millisecond {
-		rate := int(min(80_000_000, float64(p.inputBytes*8)/elapsed.Seconds()))
+		rate := int(min(viewerMaxTransportBitrate, float64(p.inputBytes*8)/elapsed.Seconds()))
 		p.sourceRate = max(rate, (p.sourceRate*7+rate)/8)
 		p.inputWindow = now
 		p.inputBytes = 0

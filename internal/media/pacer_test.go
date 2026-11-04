@@ -80,6 +80,64 @@ func TestPacerHonorsRateAndRespondsToEstimate(t *testing.T) {
 	eventually(t, func() bool { return sent.Load() == 20 })
 }
 
+func TestPacerBoundsTransportHeadroom(t *testing.T) {
+	p := newViewerPacer(func() { t.Error("pacer unexpectedly closed") })
+	defer p.Close()
+	for _, test := range []struct {
+		target int
+		want   int
+	}{
+		{40_000_000, 40_000_000 * 3 / 2},
+		{viewerMaxTransportBitrate, viewerMaxPacingBitrate},
+		{viewerMaxTransportBitrate + 1, viewerMaxPacingBitrate},
+		{0, 150_000},
+	} {
+		p.SetTargetBitrate(test.target)
+		p.mu.Lock()
+		got := p.effectiveRateLocked()
+		p.mu.Unlock()
+		if got != test.want {
+			t.Errorf("target %d paced at %d bit/s, want %d", test.target, got, test.want)
+		}
+	}
+}
+
+func TestPacerSourceBurstsUseBoundedHeadroom(t *testing.T) {
+	p := newViewerPacer(func() { t.Error("healthy source burst closed viewer") })
+	defer p.Close()
+	p.SetTargetBitrate(100_000)
+	p.start()
+	p.AddStream(1, interceptor.RTPWriterFunc(func(_ *rtp.Header, b []byte, _ interceptor.Attributes) (int, error) { return len(b), nil }))
+	// A large source burst must not expand the bounded aggregate transport
+	// allowance, regardless of the selectable video bitrate.
+	p.mu.Lock()
+	p.inputWindow = time.Now().Add(-120 * time.Millisecond)
+	p.inputBytes = viewerMaxTransportBitrate / 8
+	p.mu.Unlock()
+	if _, err := p.Write(&rtp.Header{SSRC: 1}, []byte{1}, nil); err != nil {
+		t.Fatal(err)
+	}
+	p.mu.Lock()
+	sourceRate, burstRate := p.sourceRate, p.effectiveRateLocked()
+	p.mu.Unlock()
+	if sourceRate != viewerMaxTransportBitrate {
+		t.Fatalf("source burst escaped its transport allowance: %d bit/s", sourceRate)
+	}
+	if burstRate != viewerMaxPacingBitrate {
+		t.Fatalf("source burst pacing lacked headroom or was unbounded: %d bit/s", burstRate)
+	}
+	// A large source must still obey a reduced estimate after sustained
+	// congestion; burst headroom must not bypass this existing safeguard.
+	p.observeCongestion(true)
+	p.mu.Lock()
+	p.congestedSince = time.Now().Add(-2 * time.Second)
+	congestedRate := p.effectiveRateLocked()
+	p.mu.Unlock()
+	if congestedRate != 150_000 {
+		t.Fatalf("source burst ignored congestion: %d bit/s", congestedRate)
+	}
+}
+
 func TestPacerAudioDoesNotWaitBehindVideoBurst(t *testing.T) {
 	p := newViewerPacer(func() { t.Error("pacer unexpectedly closed") })
 	defer p.Close()

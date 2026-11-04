@@ -49,6 +49,19 @@ export function StreamSettings({
           <option value={20}>20 Мбит/с · высокое качество</option>
           <option value={40}>40 Мбит/с · максимум деталей</option>
         </select>
+        <label className="setting-label" htmlFor="video-priority">
+          Приоритет видео
+        </label>
+        <select
+          id="video-priority"
+          value={value.videoPriority}
+          onChange={(e) =>
+            onChange({ ...value, videoPriority: e.target.value as Settings['videoPriority'] })
+          }
+        >
+          <option value="resolution">Сохранять разрешение</option>
+          <option value="motion">Сохранять плавность</option>
+        </select>
         <label className="setting-label" htmlFor="audio">
           <Volume2 size={15} /> Источник звука
         </label>
@@ -64,8 +77,18 @@ export function StreamSettings({
         <details className="settings-help">
           <summary>О видео и звуке</summary>
           <p className="field-hint">
-            60 FPS — для плавных игр и рабочего стола. Разрешение — как у выбранного источника. При
-            нехватке ресурсов браузер может снизить разрешение, сохраняя плавность.
+            Разрешение — как у выбранного источника. По умолчанию сохраняем плавность: при нехватке
+            скорости или ресурсов браузер может уменьшить размер кадра. Режим «Сохранять разрешение»
+            удерживает размер кадра, но может заметно снижать FPS.
+          </p>
+          <p className="field-hint">
+            Для динамичных игр в 1440p начните с 20 Мбит/с и 60 FPS. Лимит битрейта — верхняя
+            граница: фактическая скорость автоматически подстраивается под сеть. Меньший лимит
+            экономит трафик, но оставляет меньше деталей в движении.
+          </p>
+          <p className="field-hint">
+            Доступны лимиты до 40 Мбит/с. Фактический битрейт зависит от сцены, кодировщика и сети;
+            серверу нужен запас исходящей скорости для каждого зрителя.
           </p>
           <p className="field-hint">
             Источник и передачу звука выберите в диалоге браузера при запуске. Доступность зависит

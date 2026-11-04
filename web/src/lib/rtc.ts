@@ -52,6 +52,8 @@ export async function capture(settings: StreamSettings) {
   } as DisplayMediaStreamOptions;
   const stream = await navigator.mediaDevices.getDisplayMedia(options);
 
+  // Allow stronger compression for game motion. The explicit sender preference
+  // below decides whether resolution or frame rate may be reduced.
   for (const track of stream.getVideoTracks()) track.contentHint = 'motion';
 
   for (const track of stream.getAudioTracks()) {
@@ -62,21 +64,26 @@ export async function capture(settings: StreamSettings) {
   return stream;
 }
 
-export async function tune(pc: RTCPeerConnection, bitrate: number, fps: number) {
+export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
   for (const sender of pc.getSenders()) {
     const p = sender.getParameters();
 
     if (!p.encodings?.length) continue;
 
-    if (sender.track?.kind === 'video') p.degradationPreference = 'maintain-framerate';
+    if (sender.track?.kind === 'video')
+      p.degradationPreference =
+        settings.videoPriority === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
 
     for (const e of p.encodings) {
-      e.maxBitrate = sender.track?.kind === 'video' ? bitrate * 1_000_000 : AUDIO_BITRATE;
+      e.maxBitrate = sender.track?.kind === 'video' ? settings.bitrate * 1_000_000 : AUDIO_BITRATE;
 
-      if (sender.track?.kind === 'video') e.maxFramerate = fps;
+      if (sender.track?.kind === 'video') {
+        e.maxFramerate = settings.fps;
+        e.scaleResolutionDownBy = 1;
+      }
     }
 
-    await sender.setParameters(p).catch(() => {});
+    await sender.setParameters(p);
   }
 }
 

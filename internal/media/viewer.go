@@ -25,7 +25,7 @@ func newViewerPeer(settings webrtc.SettingEngine, config webrtc.Configuration) (
 		estimator, err := gcc.NewSendSideBWE(
 			gcc.SendSideBWEInitialBitrate(40_000_000),
 			gcc.SendSideBWEMinBitrate(100_000),
-			gcc.SendSideBWEMaxBitrate(80_000_000),
+			gcc.SendSideBWEMaxBitrate(viewerMaxTransportBitrate),
 			gcc.SendSideBWEPacer(pacer),
 		)
 		if err != nil {

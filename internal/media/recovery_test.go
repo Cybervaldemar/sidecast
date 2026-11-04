@@ -34,9 +34,9 @@ func TestPublisherRequestsLostPacketAfterReceiveBurst(t *testing.T) {
 		}),
 	)
 	buffer := make([]byte, 1500)
-	// Model a single receive burst before the first NACK timer fires. The
-	// original 512-entry receive log forgets the loss at the start of the frame.
-	for sequence = 1; sequence < 1600; sequence++ {
+	// Keep a loss near the start of a large receive burst recoverable until
+	// delayed feedback can request it.
+	for sequence = 1; sequence < 6000; sequence++ {
 		if sequence == 2 {
 			continue
 		}
@@ -67,6 +67,61 @@ func TestPublisherRequestsLostPacketAfterReceiveBurst(t *testing.T) {
 	case <-requested:
 	case <-time.After(time.Second):
 		t.Fatal("receive burst erased a missing packet before it could be NACKed")
+	}
+}
+
+func TestViewerRetainsPacketForDelayedNACK(t *testing.T) {
+	engine := &webrtc.MediaEngine{}
+	if err := engine.RegisterDefaultCodecs(); err != nil {
+		t.Fatal(err)
+	}
+	registry := &interceptor.Registry{}
+	if err := registerMediaInterceptors(engine, registry); err != nil {
+		t.Fatal(err)
+	}
+	chain, err := registry.Build("viewer-packet-repair")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer chain.Close()
+	repaired := make(chan struct{}, 1)
+	writer := chain.BindLocalStream(&interceptor.StreamInfo{SSRC: 1, MimeType: webrtc.MimeTypeVP8, ClockRate: 90000, RTCPFeedback: []interceptor.RTCPFeedback{{Type: "nack"}}},
+		interceptor.RTPWriterFunc(func(header *rtp.Header, payload []byte, _ interceptor.Attributes) (int, error) {
+			if header.SequenceNumber == 1 {
+				select {
+				case repaired <- struct{}{}:
+				default:
+				}
+			}
+			return len(payload), nil
+		}),
+	)
+	// A large packet burst must not erase packet 1 before delayed feedback
+	// can request a retransmission.
+	for sequence := uint16(1); sequence <= 6000; sequence++ {
+		if _, err = writer.Write(&rtp.Header{Version: 2, SSRC: 1, SequenceNumber: sequence}, make([]byte, 1200), nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	select {
+	case <-repaired: // Discard the original transmission of packet 1.
+	default:
+		t.Fatal("original packet was not sent")
+	}
+	feedback, err := (&rtcp.TransportLayerNack{MediaSSRC: 1, Nacks: []rtcp.NackPair{{PacketID: 1}}}).Marshal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := chain.BindRTCPReader(interceptor.RTCPReaderFunc(func(buffer []byte, attributes interceptor.Attributes) (int, interceptor.Attributes, error) {
+		return copy(buffer, feedback), attributes, nil
+	}))
+	if _, _, err = reader.Read(make([]byte, 1500), nil); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-repaired:
+	case <-time.After(time.Second):
+		t.Fatal("packet burst erased a packet before a delayed NACK could repair it")
 	}
 }
 

@@ -123,7 +123,7 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
       }
 
       await peer.setRemoteDescription(result.description);
-      await tune(peer, settings.bitrate, settings.fps);
+      await tune(peer, settings);
     } catch (e) {
       if (revision === generation.current) {
         stop();
