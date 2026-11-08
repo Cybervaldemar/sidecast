@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight, Check, Copy, Download, ExternalLink, KeyRound, Link2 } from 'lucide-react';
+import { ArrowRight, Check, Copy, Download, KeyRound, Link2 } from 'lucide-react';
 import { claimChannel, errorMessage } from '../lib/api';
 import type { Identity, ServerConfig } from '../types';
 
@@ -36,6 +36,8 @@ export function ChannelCard({
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showLink, setShowLink] = useState(false);
+  const [shareError, setShareError] = useState('');
   const [address, setAddress] = useState('');
 
   const hostname = location.hostname.replace(/^\[|\]$/g, '');
@@ -65,10 +67,14 @@ export function ChannelCard({
   async function copy() {
     try {
       await navigator.clipboard.writeText(link);
+      setShareError('');
+      setShowLink(false);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
     } catch {
-      setError('Выделите и скопируйте ссылку из поля вручную.');
+      setCopied(false);
+      setShowLink(true);
+      setShareError('Не удалось скопировать автоматически. Скопируйте ссылку из поля ниже.');
     }
   }
 
@@ -94,25 +100,23 @@ export function ChannelCard({
       {identity ? (
         <>
           <div className="share-row">
-            <input
-              aria-label="Постоянная ссылка"
-              readOnly
-              value={link}
-              onFocus={(e) => e.target.select()}
-            />
-            <button className="button secondary" onClick={copy}>
+            <button className="button secondary" type="button" onClick={copy}>
               {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? 'Скопировано' : 'Копировать'}
+              {copied ? 'Ссылка скопирована' : 'Ссылка на стрим'}
             </button>
-            <a
-              className="icon-button"
-              href={`/watch/${identity.nickname}`}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Открыть канал"
-            >
-              <ExternalLink size={17} />
-            </a>
+            {shareError && (
+              <p className="error" role="alert">
+                {shareError}
+              </p>
+            )}
+            {showLink && (
+              <input
+                aria-label="Ссылка на стрим для копирования"
+                readOnly
+                value={link}
+                onFocus={(event) => event.target.select()}
+              />
+            )}
           </div>
           {!config?.publicUrl &&
             (localAddress ||

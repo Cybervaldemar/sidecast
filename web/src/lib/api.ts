@@ -65,5 +65,8 @@ export function errorMessage(error: unknown): string {
   if (error instanceof DOMException && error.name === 'NotAllowedError')
     return 'Выбор экрана отменён или браузер не разрешил захват.';
 
+  if (error instanceof DOMException && error.message.includes('Could not start audio source'))
+    return 'Браузер не смог запустить захват звука. Проверьте устройство вывода звука в системе и повторите попытку. Эфир можно запустить без звука.';
+
   return error instanceof Error ? error.message : 'Не удалось выполнить действие.';
 }

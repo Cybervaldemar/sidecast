@@ -36,19 +36,6 @@ export function StreamSettings({
             </button>
           ))}
         </div>
-        <label className="setting-label" htmlFor="bitrate">
-          Максимальный битрейт
-        </label>
-        <select
-          id="bitrate"
-          value={value.bitrate}
-          onChange={(e) => onChange({ ...value, bitrate: Number(e.target.value) })}
-        >
-          <option value={6}>6 Мбит/с · экономный</option>
-          <option value={12}>12 Мбит/с · сбалансированный</option>
-          <option value={20}>20 Мбит/с · высокое качество</option>
-          <option value={40}>40 Мбит/с · максимум деталей</option>
-        </select>
         <label className="setting-label" htmlFor="video-priority">
           Приоритет видео
         </label>
@@ -62,18 +49,27 @@ export function StreamSettings({
           <option value="resolution">Сохранять разрешение</option>
           <option value="motion">Сохранять плавность</option>
         </select>
-        <label className="setting-label" htmlFor="audio">
-          <Volume2 size={15} /> Источник звука
+        <label className="setting-label">
+          <Volume2 size={15} /> Передавать звук
         </label>
-        <select
-          id="audio"
-          value={value.audio}
-          onChange={(e) => onChange({ ...value, audio: e.target.value as Settings['audio'] })}
-        >
-          <option value="window">Звук выбранного окна</option>
-          <option value="system">Системный звук</option>
-          <option value="off">Без звука</option>
-        </select>
+        <div className="segmented" role="group" aria-label="Передавать звук">
+          <button
+            type="button"
+            aria-pressed={value.audio}
+            className={value.audio ? 'selected' : ''}
+            onClick={() => onChange({ ...value, audio: true })}
+          >
+            Со звуком
+          </button>
+          <button
+            type="button"
+            aria-pressed={!value.audio}
+            className={!value.audio ? 'selected' : ''}
+            onClick={() => onChange({ ...value, audio: false })}
+          >
+            Без звука
+          </button>
+        </div>
         <details className="settings-help">
           <summary>О видео и звуке</summary>
           <p className="field-hint">
@@ -82,17 +78,17 @@ export function StreamSettings({
             удерживает размер кадра, но может заметно снижать FPS.
           </p>
           <p className="field-hint">
-            Для динамичных игр в 1440p начните с 20 Мбит/с и 60 FPS. Лимит битрейта — верхняя
-            граница: фактическая скорость автоматически подстраивается под сеть. Меньший лимит
-            экономит трафик, но оставляет меньше деталей в движении.
+            Видео ограничено 20 Мбит/с: фактическая скорость может быть ниже. Браузер подстраивает
+            качество по соединению ведущего с сервером.
           </p>
           <p className="field-hint">
-            Доступны лимиты до 40 Мбит/с. Фактический битрейт зависит от сцены, кодировщика и сети;
-            серверу нужен запас исходящей скорости для каждого зрителя.
+            Все зрители получают один видеопоток. Если соединение отдельного зрителя не успевает,
+            качество только для него не снижается автоматически: изображение может останавливаться
+            или переподключаться.
           </p>
           <p className="field-hint">
-            Источник и передачу звука выберите в диалоге браузера при запуске. Доступность зависит
-            от браузера и ОС.
+            Если звук включён здесь, выберите его передачу в диалоге браузера при запуске. Доступные
+            источники звука зависят от браузера и ОС.
           </p>
         </details>
       </fieldset>

@@ -154,6 +154,12 @@ try {
   });
   const source = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const viewerContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await source.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: async (link) => { window.__testCopiedLink = link; } },
+    });
+  });
   for (const context of [source, viewerContext])
     await context.addInitScript(() => {
       window.__testPeers = [];
@@ -174,8 +180,12 @@ try {
   );
   await studio.getByLabel('Никнейм', { exact: true }).fill('motion-check');
   await studio.getByRole('button', { name: 'Создать канал', exact: true }).click();
+  await studio.getByRole('button', { name: 'Ссылка на стрим', exact: true }).click();
+  const viewerURL = await studio.evaluate(() => window.__testCopiedLink);
+  if (new URL(viewerURL).pathname !== '/watch/motion-check')
+    throw new Error('Copied stream link is invalid');
   const viewer = await viewerContext.newPage();
-  await viewer.goto(await studio.getByLabel('Постоянная ссылка').inputValue());
+  await viewer.goto(viewerURL);
   const cdp = await viewerContext.newCDPSession(viewer);
   await cdp.send('Network.emulateNetworkConditionsByRule', {
     matchedNetworkConditions: [
@@ -195,13 +205,23 @@ try {
   );
   await studio.locator('#video-priority').selectOption(videoPriority);
   for (const bitrate of bitrates) {
-    await studio.locator('#bitrate').selectOption(String(bitrate));
     await studio.getByRole('button', { name: 'Начать трансляцию', exact: true }).click();
     const warmupSamples = [];
     const warmupStarted = Date.now();
     let warmupStage = 'video';
     try {
       await expect(studio.getByText('Вы в эфире', { exact: true })).toBeVisible({ timeout: 25000 });
+      // Diagnostic runs can compare encoder caps without exposing a quality
+      // selector in the studio. The product itself uses one fixed cap.
+      await studio.evaluate(async (limit) => {
+        const peer = window.__testPeers.at(-1);
+        const sender = peer?.getSenders().find((value) => value.track?.kind === 'video');
+        if (!sender) throw new Error('Video sender is unavailable');
+        const parameters = sender.getParameters();
+        if (!parameters.encodings.length) throw new Error('Video encoding is unavailable');
+        for (const encoding of parameters.encodings) encoding.maxBitrate = limit * 1_000_000;
+        await sender.setParameters(parameters);
+      }, bitrate);
       await expect
         .poll(
           async () => {
@@ -308,6 +328,26 @@ try {
     };
     const encoded = difference('publisher', 'framesEncoded');
     const failures = [];
+    let decodeStallMs = 0;
+    let maxDecodeStallMs = 0;
+    for (let index = 1; index < samples.length; index++) {
+      const previous = samples[index - 1];
+      const current = samples[index];
+      if (
+        current.receiver.connections !== previous.receiver.connections ||
+        current.receiver.id !== previous.receiver.id ||
+        (current.receiver.framesDecoded ?? 0) > (previous.receiver.framesDecoded ?? 0)
+      ) {
+        decodeStallMs = 0;
+      } else {
+        decodeStallMs += current.elapsedMs - previous.elapsedMs;
+        maxDecodeStallMs = Math.max(maxDecodeStallMs, decodeStallMs);
+      }
+    }
+    if (maxDecodeStallMs >= 5000)
+      failures.push(`Viewer decoded no new frames for ${Math.round(maxDecodeStallMs)} ms`);
+    if (last.receiver.connections !== first.receiver.connections)
+      failures.push('Viewer reconnected during playback');
     if (videoPriority === 'resolution') {
       for (const side of ['publisher', 'receiver']) {
         const dimensions = samples.map((sample) => [
@@ -341,6 +381,7 @@ try {
       decodedFps: rate('receiver', 'framesDecoded'),
       freezeCount: difference('receiver', 'freezeCount'),
       freezeSeconds: difference('receiver', 'totalFreezesDuration'),
+      maxDecodeStallMs,
       maxPresentationGapMs: presentation.maxGap,
       packetsLost: difference('receiver', 'packetsLost'),
       nackCount: difference('receiver', 'nackCount'),

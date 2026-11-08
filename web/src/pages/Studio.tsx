@@ -23,9 +23,8 @@ export function Studio({
   const [saveError, setSaveError] = useState('');
   const [settings, setSettings] = useState<Settings>({
     fps: 60,
-    bitrate: 20,
     videoPriority: 'motion',
-    audio: 'window',
+    audio: true,
   });
   const publisher = usePublisher(identity, config);
   const stats = usePeerStats(publisher.pc, true);

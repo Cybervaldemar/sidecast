@@ -34,6 +34,12 @@ async function ready() {
   await expect.poll(() => serverOutput,{timeout:15000}).toContain('Sidecast studio:');
   await expect.poll(async () => { try { return (await fetch(`${origin}/api/health`)).status; } catch { return 0; } },{timeout:15000}).toBe(200);
 }
+async function copyStreamLink(page, nickname) {
+  await page.getByRole('button',{name:'Ссылка на стрим',exact:true}).click();
+  const link = await page.evaluate(() => window.__testCopiedLink);
+  expect(new URL(link).pathname).toBe(`/watch/${nickname}`);
+  return link;
+}
 async function decodedVideo(page) {
   // Chrome can adapt resolution and suspend painting background/mobile tabs.
   // Receiver stats verify decoding independently of presentation and scaling.
@@ -159,6 +165,11 @@ try {
   const studioContext = await browser.newContext({viewport:{width:1440,height:1100}});
   const errors = [];
   studioContext.on('page',page => page.on('pageerror',error => errors.push(error.message)));
+  await studioContext.addInitScript(() => {
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText: async link => { window.__testCopiedLink = link; },
+    }});
+  });
   const captureScript = readFileSync(new URL('./fixtures/capture.js',import.meta.url),'utf8');
   await studioContext.addInitScript(captureScript);
   await studioContext.addInitScript(() => {
@@ -171,13 +182,13 @@ try {
   await expect(studio.getByRole('link', { name: 'Sidecast — главная', exact: true })).toBeVisible();
   await expect(studio.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
   await expect(studio.locator('#video-priority')).toHaveValue('motion');
-  expect(await studio.locator('#bitrate option').evaluateAll(options => options.map(option => Number(option.value)))).toEqual([6,12,20,40]);
-  await studio.locator('#bitrate').selectOption('40');
-  await expect(studio.locator('#bitrate')).toHaveValue('40');
+  await expect(studio.locator('#bitrate')).toHaveCount(0);
+  await expect(studio.locator('#audio')).toHaveCount(0);
+  await expect(studio.getByRole('button',{name:'Со звуком',exact:true})).toHaveAttribute('aria-pressed','true');
   await studio.screenshot({path:resolve(output,'studio-empty.png'),fullPage:true});
   await studio.getByLabel('Никнейм',{exact:true}).fill('test-streamer');
   await studio.getByRole('button',{name:'Создать канал',exact:true}).click();
-  await expect(studio.getByLabel('Постоянная ссылка')).toHaveValue(/\/watch\/test-streamer$/);
+  const copiedLink = await copyStreamLink(studio,'test-streamer');
   const identity = await studio.evaluate(() => JSON.parse(localStorage.getItem('sidecast.identity.v2')));
   const viewerContext = await browser.newContext({viewport:{width:1440,height:1100}});
   await viewerContext.addInitScript(() => {
@@ -187,7 +198,7 @@ try {
   });
   viewerContext.on('page',page => page.on('pageerror',error => errors.push(error.message)));
   const viewer = await viewerContext.newPage();
-  const viewerURL = new URL(await studio.getByLabel('Постоянная ссылка').inputValue());
+  const viewerURL = new URL(copiedLink);
   expect(viewerURL.protocol).toBe('http:');
   expect(['localhost', '127.0.0.1', '[::1]']).not.toContain(viewerURL.hostname);
   await viewer.goto(viewerURL.href);
@@ -200,7 +211,7 @@ try {
   await expect.poll(() => studio.evaluate(() => {
     const sender = window.__testPeers.at(-1)?.getSenders().find(value => value.track?.kind === 'video');
     return sender?.getParameters().encodings[0]?.maxBitrate;
-  })).toBe(40_000_000);
+  })).toBe(20_000_000);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.videoWidth),{timeout:25000}).toBe(1920);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames),{timeout:10000}).toBeGreaterThan(10);
   await expect(viewer.locator('.watch-player').getByRole('status')).toHaveText(/в эфире/i);
@@ -251,10 +262,15 @@ try {
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
   await exitFullscreenButton.click();
   await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await studio.getByRole('button',{name:'Без звука',exact:true}).click();
+  await expect(studio.getByRole('button',{name:'Без звука',exact:true})).toHaveAttribute('aria-pressed','true');
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await decodedVideo(viewer);
+  await expect.poll(() => studio.locator('video').evaluate(video => video.srcObject?.getAudioTracks().length)).toBe(0);
+  await expect.poll(() => studio.evaluate(() => window.__testPeers.at(-1)?.getSenders().filter(sender => sender.track?.kind === 'audio').length)).toBe(0);
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
+  await studio.getByRole('button',{name:'Со звуком',exact:true}).click();
   await stopServer(); startServer(); await ready();
   const status = await fetch(`${origin}/api/channels/test-streamer`).then(r=>r.json());
   expect(status.exists).toBe(true); expect(status.live).toBe(false);
@@ -266,7 +282,7 @@ try {
     localStorage.setItem('lanplay.identity.v2', JSON.stringify(identity));
     localStorage.removeItem('sidecast.identity.v2');
   }, identity);
-  await studio.reload(); await expect(studio.getByLabel('Постоянная ссылка')).toHaveValue(/\/watch\/test-streamer$/);
+  await studio.reload(); expect(await copyStreamLink(studio,'test-streamer')).toBe(copiedLink);
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   await decodedVideo(viewer);
@@ -315,13 +331,18 @@ try {
   networkURL.hostname = networkAddress.includes(':') ? `[${networkAddress}]` : networkAddress;
   expect(['localhost', '127.0.0.1', '[::1]']).not.toContain(networkURL.hostname);
   const networkContext = await browser.newContext({viewport:{width:1440,height:1100}});
+  await networkContext.addInitScript(() => {
+    Object.defineProperty(navigator,'clipboard',{configurable:true,value:{
+      writeText: async link => { window.__testCopiedLink = link; },
+    }});
+  });
   const networkPage = await networkContext.newPage();
   networkPage.on('pageerror',error => errors.push(error.message));
   await networkPage.goto(networkURL.href);
   await expect(networkPage.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
   await networkPage.getByLabel('Никнейм',{exact:true}).fill('lan-streamer');
   await networkPage.getByRole('button',{name:'Создать канал',exact:true}).click();
-  await expect(networkPage.getByLabel('Постоянная ссылка')).toHaveValue(`${networkURL.origin}/watch/lan-streamer`);
+  expect(await copyStreamLink(networkPage,'lan-streamer')).toBe(`${networkURL.origin}/watch/lan-streamer`);
   const networkCapture = await networkPage.evaluate(() => ({
     secureContext: window.isSecureContext,
     captureAvailable: typeof navigator.mediaDevices?.getDisplayMedia === 'function',

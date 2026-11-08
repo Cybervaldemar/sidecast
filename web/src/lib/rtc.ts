@@ -1,6 +1,8 @@
 import type { StreamSettings, StreamStats } from '../types';
 import { AUDIO_BITRATE, GAME_AUDIO_CONSTRAINTS, withGameAudio } from './audio';
 
+const VIDEO_MAX_BITRATE = 20_000_000;
+
 export async function offer(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
   const done = new Promise<void>((resolve, reject) => {
     const cleanup = () => {
@@ -45,9 +47,11 @@ export async function capture(settings: StreamSettings) {
 
   const options = {
     video: { frameRate: { ideal: settings.fps, max: settings.fps }, displaySurface: 'window' },
-    audio: settings.audio === 'off' ? false : GAME_AUDIO_CONSTRAINTS,
-    windowAudio: settings.audio === 'system' ? 'system' : 'window',
-    systemAudio: settings.audio === 'off' ? 'exclude' : 'include',
+    // Let Chrome start the audio source with its own defaults. Apply the
+    // game-audio preferences to the track only after capture succeeds.
+    audio: settings.audio,
+    systemAudio: settings.audio ? 'include' : 'exclude',
+    windowAudio: settings.audio ? 'window' : 'exclude',
     selfBrowserSurface: 'exclude',
   } as DisplayMediaStreamOptions;
   const stream = await navigator.mediaDevices.getDisplayMedia(options);
@@ -75,7 +79,7 @@ export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
         settings.videoPriority === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
 
     for (const e of p.encodings) {
-      e.maxBitrate = sender.track?.kind === 'video' ? settings.bitrate * 1_000_000 : AUDIO_BITRATE;
+      e.maxBitrate = sender.track?.kind === 'video' ? VIDEO_MAX_BITRATE : AUDIO_BITRATE;
 
       if (sender.track?.kind === 'video') {
         e.maxFramerate = settings.fps;
