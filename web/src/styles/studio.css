@@ -1,5 +1,6 @@
 .preview-card {
   overflow: hidden;
+  box-shadow: 0 22px 48px #02060b45;
 }
 .shutdown-button {
   min-height: 32px;
@@ -15,8 +16,8 @@
   gap: 14px;
   padding: 16px;
   margin-bottom: 16px;
-  border-color: #64813f;
-  background: #1c2818;
+  border-color: #3d5b75;
+  background: #142331;
 }
 .update-notice-icon {
   display: grid;
@@ -24,9 +25,9 @@
   width: 38px;
   height: 38px;
   flex: none;
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--lime);
-  background: #344726;
+  background: #263d53;
 }
 .update-notice-content {
   flex: 1;
@@ -38,7 +39,7 @@
 }
 .update-notice-content p {
   margin-top: 4px;
-  color: #a9b89c;
+  color: #adbfce;
   font-size: 11px;
   line-height: 1.5;
 }
@@ -80,15 +81,6 @@
   color: var(--muted);
   max-width: 440px;
 }
-.preview-heading {
-  padding: 14px 16px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.preview-heading h2 {
-  font-size: 13px;
-}
 .broadcast-actions {
   padding: 14px 16px;
   display: flex;
@@ -103,14 +95,14 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #cbd3c6;
+  color: #d7e1ea;
 }
 .action-status svg {
-  color: #86967c;
+  color: #8fa5ba;
 }
 .broadcast-actions p {
   font-size: 10px;
-  color: #75836d;
+  color: #8fa2b5;
   margin-top: 6px;
 }
 .inline-error {
@@ -132,8 +124,8 @@
 .share-row input {
   width: 100%;
   font-size: 12px;
-  color: #bdcdb1;
-  background: #121613;
+  color: #d9e5ef;
+  background: #0b141e;
   padding-left: 12px;
 }
 .share-row .button {
@@ -148,7 +140,7 @@
   gap: 12px;
   margin-top: 10px;
   font-size: 10px;
-  color: #86957c;
+  color: #9aacc0;
 }
 .network-select select {
   font-size: 10px;
@@ -157,7 +149,7 @@
   padding: 5px 9px;
 }
 .claim-form > label {
-  color: #a9b3a4;
+  color: #b9c9d9;
 }
 .claim-row {
   display: flex;
@@ -174,7 +166,7 @@
   position: absolute;
   left: 13px;
   top: 14px;
-  color: #7f8f74;
+  color: #8198ae;
   font-size: 12px;
   pointer-events: none;
 }
@@ -182,10 +174,10 @@
   margin-top: 7px;
 }
 .key-details {
-  border-top: 1px solid #2a3227;
+  border-top: 1px solid var(--line);
   margin-top: 12px;
   padding-top: 10px;
-  color: #88977f;
+  color: #9aadc0;
   font-size: 11px;
 }
 .key-details summary {
@@ -216,7 +208,7 @@
 }
 .settings-card .section-heading {
   padding-bottom: 12px;
-  border-bottom: 1px solid #2a3129;
+  border-bottom: 1px solid var(--line);
   margin-bottom: 12px;
 }
 .settings-card h2 {
@@ -226,7 +218,7 @@
   display: flex;
   align-items: center;
   gap: 7px;
-  color: #a8b49f;
+  color: #b6c7d8;
   font-size: 11px;
   margin: 12px 0 7px;
 }
@@ -236,19 +228,19 @@
 .segmented {
   display: flex;
   padding: 3px;
-  border: 1px solid #2e372b;
-  background: #111610;
-  border-radius: 8px;
+  border: 1px solid #2b3b4d;
+  background: #0b131d;
+  border-radius: 11px;
   gap: 3px;
 }
 .segmented button {
   flex: 1;
   background: transparent;
   border: 1px solid transparent;
-  color: #91a184;
+  color: #a2b3c5;
   font-size: 13px;
   font-weight: 600;
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 7px 2px;
 }
 .segmented span {
@@ -257,28 +249,28 @@
   font-weight: 400;
 }
 .segmented button.selected {
-  background: #29351e;
-  border-color: #c4f16a40;
-  color: var(--lime);
-  box-shadow: 0 1px 3px #0003;
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #0c1824;
+  box-shadow: 0 3px 12px #03091166;
 }
 .settings-card .field-hint {
   font-size: 10px;
   margin-top: 8px;
-  color: #74816a;
+  color: #90a4b9;
   line-height: 1.7;
 }
 .settings-card select {
   font-size: 11px;
-  color: #c2cdb9;
-  background: #141913;
-  border-color: #333c2e;
+  color: #d8e5f0;
+  background: #0d1722;
+  border-color: #304254;
   min-height: 36px;
   padding: 8px 10px;
 }
 .settings-help {
   margin-top: 12px;
-  color: #88977f;
+  color: #9aadc0;
   font-size: 10px;
 }
 .host-studio .stats-bar {
@@ -339,9 +331,6 @@
   .studio-status {
     flex-wrap: wrap;
   }
-  .preview-heading {
-    padding: 13px 15px;
-  }
   .broadcast-actions {
     padding: 14px;
     flex-direction: column;
@@ -361,5 +350,585 @@
   }
   .channel-card h2 {
     font-size: 14px;
+  }
+}
+
+/* The preview is the studio's main surface; controls remain in a readable side panel. */
+.host-studio {
+  --studio-topbar-height: 56px;
+  --studio-padding: clamp(16px, 1.1vw, 28px);
+  --studio-island-gap: clamp(12px, 0.9vw, 32px);
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: var(--studio-padding);
+}
+.host-studio .studio-grid {
+  grid-template-columns: minmax(0, 1fr) clamp(340px, 24vw, 760px);
+  gap: clamp(16px, 1vw, 24px);
+  min-height: 0;
+  height: calc(
+    100dvh - var(--studio-topbar-height) - var(--studio-padding) - var(--studio-padding)
+  );
+}
+.host-studio .main-column {
+  min-height: 0;
+  height: auto;
+}
+.host-studio .preview-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--studio-island-gap);
+  min-height: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.host-studio .preview-card .video-stage {
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: auto;
+}
+.host-studio .side-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--studio-island-gap);
+  min-height: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.studio-topbar {
+  gap: 16px;
+}
+.studio-topbar h1 {
+  font-size: clamp(18px, 0.85vw, 23px);
+}
+.studio-topbar .studio-status {
+  gap: 10px;
+}
+.studio-topbar .server-indicator,
+.studio-topbar .status-pill {
+  font-size: 13px;
+}
+.studio-topbar .shutdown-button {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.host-studio .stats-bar {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 14px 0;
+}
+.host-studio .stat {
+  min-width: 0;
+  padding: 0 18px;
+}
+.host-studio .stat-label {
+  gap: 8px;
+  font-size: 13px;
+}
+.host-studio .stat-label svg {
+  width: 16px;
+  height: 16px;
+}
+.host-studio .stat-value {
+  margin-top: 7px;
+  font-size: clamp(20px, 1.2vw, 25px);
+  white-space: normal;
+}
+.host-studio .stat-value span {
+  font-size: 13px;
+}
+.host-studio .broadcast-actions {
+  padding: 18px 20px;
+  gap: 18px;
+}
+.host-studio .broadcast-actions .button {
+  min-height: 50px;
+  padding-inline: 20px;
+  font-size: 15px;
+}
+.host-studio .action-status {
+  font-size: 16px;
+}
+.host-studio .action-status svg {
+  width: 20px;
+  height: 20px;
+}
+.host-studio .broadcast-actions p {
+  margin-top: 7px;
+  font-size: 13px;
+}
+.host-studio .stage-empty h3 {
+  font-size: 21px;
+}
+.host-studio .stage-empty p {
+  font-size: 14px;
+}
+.host-studio .stage-controls > span {
+  font-size: 13px;
+}
+.host-studio .stage-controls .icon-button {
+  width: 44px;
+  height: 44px;
+}
+.host-studio .settings-card,
+.host-studio .channel-card {
+  padding: 20px;
+}
+.host-studio .channel-card .section-heading {
+  min-width: 0;
+}
+.host-studio .channel-nickname {
+  min-width: 0;
+  max-width: 55%;
+  overflow: hidden;
+  margin-left: auto;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: #c9dff615;
+  color: #b9cee2;
+  font-size: clamp(13px, 0.7vw, 26px);
+  font-weight: 500;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.host-studio .settings-card h2,
+.host-studio .channel-card h2 {
+  font-size: 17px;
+}
+.host-studio .setting-label {
+  gap: 8px;
+  margin: 16px 0 8px;
+  font-size: 14px;
+}
+.host-studio .setting-label:first-of-type {
+  margin-top: 0;
+}
+.host-studio .segmented button {
+  min-height: 44px;
+  font-size: 15px;
+}
+.host-studio .segmented span {
+  font-size: 13px;
+}
+.host-studio .settings-card select {
+  min-height: 45px;
+  font-size: 14px;
+}
+.host-studio .settings-help,
+.host-studio .settings-help summary,
+.host-studio .field-hint,
+.host-studio .settings-card .field-hint {
+  font-size: 13px;
+}
+.host-studio .channel-card > .muted,
+.host-studio .claim-form > label,
+.host-studio .key-details,
+.host-studio .key-details p,
+.host-studio .key-details label,
+.host-studio .key-details summary,
+.host-studio .network-select {
+  font-size: 13px;
+}
+.host-studio .share-row input,
+.host-studio .share-row .button,
+.host-studio .claim-row input,
+.host-studio .key-details input {
+  font-size: 14px;
+}
+.host-studio .network-select select {
+  min-height: 40px;
+  font-size: 13px;
+}
+
+/* Separate, softly raised work areas keep the preview dominant. */
+.host-studio .channel-card,
+.host-studio .settings-card {
+  border: 0;
+  border-radius: clamp(22px, 1.4vw, 44px);
+  background:
+    radial-gradient(ellipse at 100% 100%, #29274255, transparent 57%),
+    linear-gradient(150deg, #1d3046, #142238 72%);
+  box-shadow:
+    0 24px 56px #02071150,
+    inset 0 1px #ffffff0e;
+}
+.host-studio .update-notice {
+  border: 0;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #21364c, #16263b);
+  box-shadow:
+    0 18px 42px #02071143,
+    inset 0 1px #ffffff0e;
+}
+.host-studio .section-icon {
+  color: #b8cee5;
+}
+.host-studio .preview-card .video-stage {
+  overflow: hidden;
+  border-radius: clamp(22px, 1.4vw, 44px);
+  background:
+    radial-gradient(ellipse 62% 75% at 42% 47%, #27445f 0%, #1b3049 47%, transparent 92%),
+    radial-gradient(ellipse 57% 72% at 91% 82%, #2d2a4c94 0%, transparent 72%), #0b1524;
+  box-shadow:
+    0 28px 64px #02071159,
+    inset 0 1px #ffffff0c;
+}
+.host-studio .video-stage::before {
+  background-image: none;
+}
+.host-studio .video-stage.has-stream {
+  background: #050a11;
+}
+.host-studio .stage-label {
+  font-size: 12px;
+  color: #a9bed2;
+  background: #dceaff1b;
+  border-color: transparent;
+  border-radius: 8px;
+  backdrop-filter: blur(20px);
+}
+.host-studio .stage-label.is-live {
+  color: #ffc2c4;
+  background: #351b26e8;
+  border-color: #ab5761;
+}
+.host-studio .stage-label.is-live .status-dot {
+  background: #ff717e;
+  box-shadow: 0 0 10px #ff717e80;
+}
+.host-studio .stage-empty-icon {
+  color: var(--lime);
+  border-color: transparent;
+  background: #c5def51a;
+  box-shadow: 0 0 70px #8ebbe522;
+}
+.host-studio .stage-empty h3 {
+  color: #e6eff7;
+}
+.host-studio .stage-empty p {
+  color: #9fb1c2;
+}
+.host-studio .waiting-label {
+  font-size: 13px;
+  color: #bfd3e7;
+  background: #89aecd14;
+  border-color: #7fa2c044;
+}
+.host-studio .stage-controls {
+  color: #afc3d5;
+  background: linear-gradient(transparent, #08131fdb);
+}
+.host-studio .stage-controls .icon-button {
+  color: #cfdeec;
+  background: #1b2a3bc4;
+  border-color: #94b1ca2e;
+  border-radius: 11px;
+}
+.host-studio .stage-controls .icon-button:hover {
+  background: #31465c;
+}
+.host-studio .stats-bar {
+  border: 0;
+  border-radius: clamp(18px, 1.1vw, 34px);
+  background: linear-gradient(120deg, #1a2d43, #142338 70%, #1a2138);
+  box-shadow:
+    0 18px 42px #02071143,
+    inset 0 1px #ffffff0b;
+}
+.host-studio .stat {
+  border: 0;
+}
+.host-studio .broadcast-actions {
+  border: 0;
+  border-radius: clamp(18px, 1.1vw, 34px);
+  background: linear-gradient(120deg, #1a2b40, #142137 78%);
+  box-shadow:
+    0 18px 42px #02071143,
+    inset 0 1px #ffffff0b;
+}
+.host-studio .settings-card .section-heading,
+.host-studio .key-details {
+  border: 0;
+}
+.host-studio .settings-card .section-heading {
+  padding-bottom: 3px;
+}
+.host-studio .segmented {
+  border: 0;
+  background: #081524b8;
+}
+.host-studio .segmented button.selected {
+  border-color: transparent;
+  background: linear-gradient(135deg, #d7eafb, #bdd9f0);
+  box-shadow: 0 10px 30px #7db2e31c;
+}
+.host-studio .stat-label,
+.host-studio .stat-value span {
+  color: #9cb0c3;
+}
+.host-studio .stat-value {
+  color: #e2ecf5;
+}
+.host-studio .action-status.text-green {
+  color: #ff939b !important;
+}
+.host-studio .action-status.text-green svg {
+  color: #ff939b;
+}
+.host-studio input,
+.host-studio select {
+  border-color: transparent;
+  border-radius: 11px;
+  background: #081625b5;
+}
+.host-studio input:focus,
+.host-studio select:focus {
+  border-color: #93b3d2;
+  box-shadow: 0 0 0 3px #93b3d22b;
+}
+.studio-topbar .server-indicator {
+  color: #a3b5c8;
+}
+.studio-topbar .status-pill {
+  color: #a9b8c7;
+  background: #1b2935;
+  border-color: #344555;
+}
+.studio-topbar .status-pill.on {
+  color: #ffb0b5;
+  background: #38202a;
+  border-color: #9a505a;
+}
+.studio-topbar .status-pill.on .status-dot {
+  background: #ff717e;
+  box-shadow: 0 0 9px #ff717e80;
+}
+
+@media (min-width: 651px) {
+  .host-studio {
+    --studio-padding: var(--island-outer-gap, clamp(12px, 1vw, 36px));
+    --studio-topbar-height: calc(
+      clamp(56px, 4vw, 144px) + var(--island-outer-gap, clamp(12px, 1vw, 36px))
+    );
+  }
+}
+@media (min-width: 1700px) {
+  .studio-topbar h1 {
+    font-size: clamp(20px, calc(0.8vw + 6px), 28px);
+  }
+  .studio-topbar .server-indicator,
+  .studio-topbar .status-pill,
+  .studio-topbar .shutdown-button {
+    font-size: clamp(13px, calc(0.55vw + 3px), 17px);
+  }
+  .host-studio .settings-card h2,
+  .host-studio .channel-card h2 {
+    font-size: clamp(19px, calc(0.8vw + 6px), 23px);
+  }
+  .host-studio .stage-empty h3 {
+    font-size: clamp(22px, 1.25vw, 32px);
+  }
+  .host-studio .stage-empty p,
+  .host-studio .stage-controls > span {
+    font-size: clamp(15px, 0.8vw, 20px);
+  }
+  .host-studio .stage-controls .icon-button {
+    width: clamp(44px, calc(2vw + 12px), 60px);
+    height: clamp(44px, calc(2vw + 12px), 60px);
+  }
+  .host-studio .setting-label,
+  .host-studio .action-status,
+  .host-studio .stat-label {
+    font-size: clamp(14px, calc(0.7vw + 3px), 18px);
+  }
+  .host-studio .segmented button,
+  .host-studio .settings-card select,
+  .host-studio .share-row input,
+  .host-studio .share-row .button {
+    font-size: clamp(15px, calc(0.7vw + 3px), 18px);
+  }
+  .host-studio .stat-value {
+    font-size: clamp(25px, calc(1.15vw + 3px), 30px);
+  }
+  .host-studio .broadcast-actions p,
+  .host-studio .channel-card > .muted,
+  .host-studio .claim-form > label,
+  .host-studio .key-details,
+  .host-studio .key-details p,
+  .host-studio .key-details label,
+  .host-studio .key-details summary,
+  .host-studio .network-select {
+    font-size: clamp(13px, calc(0.55vw + 3px), 16px);
+  }
+}
+@media (min-width: 2600px) {
+  .studio-topbar h1 {
+    font-size: clamp(28px, 0.8vw, 32px);
+  }
+  .studio-topbar .server-indicator,
+  .studio-topbar .status-pill,
+  .studio-topbar .shutdown-button {
+    font-size: clamp(17px, 0.6vw, 24px);
+  }
+  .host-studio .settings-card h2,
+  .host-studio .channel-card h2 {
+    font-size: clamp(23px, 0.8vw, 30px);
+  }
+  .host-studio .stage-empty h3 {
+    font-size: clamp(32px, 1.05vw, 40px);
+  }
+  .host-studio .stage-empty p,
+  .host-studio .stage-controls > span {
+    font-size: clamp(20px, 0.63vw, 24px);
+  }
+  .host-studio .stage-label,
+  .host-studio .waiting-label,
+  .host-studio .broadcast-actions p {
+    font-size: clamp(16px, 0.6vw, 23px);
+  }
+  .host-studio .stage-controls .icon-button {
+    width: clamp(60px, 2.35vw, 90px);
+    height: clamp(60px, 2.35vw, 90px);
+  }
+  .host-studio .stage-controls .icon-button svg {
+    width: clamp(20px, 0.72vw, 28px);
+    height: clamp(20px, 0.72vw, 28px);
+  }
+  .host-studio .section-icon svg,
+  .host-studio .setting-label svg,
+  .host-studio .action-status svg,
+  .host-studio .stat-label svg {
+    width: clamp(20px, 0.72vw, 28px);
+    height: clamp(20px, 0.72vw, 28px);
+  }
+  .host-studio .setting-label,
+  .host-studio .action-status,
+  .host-studio .stat-label {
+    font-size: clamp(18px, 0.68vw, 26px);
+  }
+  .host-studio .segmented button,
+  .host-studio .settings-card select,
+  .host-studio .share-row input,
+  .host-studio .share-row .button,
+  .host-studio .claim-row input,
+  .host-studio .key-details input,
+  .host-studio .network-select select {
+    font-size: clamp(18px, 0.68vw, 26px);
+  }
+  .host-studio .segmented button,
+  .host-studio .settings-card select {
+    min-height: clamp(52px, 1.7vw, 66px);
+  }
+  .host-studio .segmented span {
+    font-size: clamp(15px, 0.48vw, 19px);
+  }
+  .host-studio .settings-help,
+  .host-studio .settings-help summary,
+  .host-studio .field-hint,
+  .host-studio .settings-card .field-hint {
+    font-size: clamp(16px, 0.6vw, 23px);
+  }
+  .host-studio .broadcast-actions .button {
+    min-height: clamp(62px, 2.2vw, 84px);
+    font-size: clamp(19px, 0.67vw, 26px);
+  }
+  .host-studio .stat-value {
+    font-size: clamp(30px, 0.85vw, 34px);
+  }
+  .host-studio .stat-value span,
+  .host-studio .channel-card > .muted,
+  .host-studio .claim-form > label,
+  .host-studio .key-details,
+  .host-studio .key-details p,
+  .host-studio .key-details label,
+  .host-studio .key-details summary,
+  .host-studio .network-select {
+    font-size: clamp(16px, 0.65vw, 25px);
+  }
+}
+
+@media (max-width: 1199px) {
+  .host-studio .studio-grid {
+    height: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .host-studio .main-column {
+    min-height: 0;
+  }
+  .host-studio .preview-card .video-stage {
+    flex: none;
+    min-height: 0;
+    aspect-ratio: 16 / 9;
+  }
+  .host-studio .side-column {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    max-height: none;
+    overflow: visible;
+  }
+}
+@media (max-width: 720px) {
+  .host-studio .studio-grid:has(.claim-form) .side-column {
+    display: contents;
+  }
+  .host-studio .studio-grid:has(.claim-form) .side-column .channel-card {
+    order: -1;
+  }
+  .host-studio .studio-grid:has(.claim-form) .side-column .settings-card {
+    order: 1;
+  }
+  .host-studio .preview-card .video-stage:has(.stage-empty) {
+    min-height: clamp(280px, 52vw, 400px);
+  }
+  .studio-topbar .studio-status {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .studio-topbar .server-indicator {
+    font-size: 0;
+  }
+  .studio-topbar .shutdown-button {
+    font-size: 0;
+    min-width: 42px;
+    min-height: 42px;
+    padding: 8px;
+  }
+  .host-studio .side-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .host-studio .broadcast-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .host-studio .broadcast-actions .button {
+    width: 100%;
+  }
+  .host-studio .stat {
+    padding-inline: 10px;
+  }
+  .host-studio .stat-label {
+    font-size: 11px;
+  }
+  .host-studio .stat-value {
+    font-size: 18px;
+  }
+  .host-studio .stat-value span {
+    display: block;
+    font-size: 11px;
+  }
+  .host-studio .stage-label {
+    font-size: 10px;
+  }
+  .host-studio .waiting-label,
+  .host-studio .segmented span {
+    font-size: 11px;
   }
 }

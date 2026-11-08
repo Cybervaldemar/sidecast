@@ -1,17 +1,8 @@
-import { Activity, Gauge, Monitor, Users } from 'lucide-react';
+import { Activity, Gauge, Monitor } from 'lucide-react';
 import type { StreamStats } from '../types';
 
-export function StatsBar({
-  stats,
-  viewers,
-  live,
-}: {
-  stats: StreamStats;
-  viewers: number;
-  live: boolean;
-}) {
+export function StatsBar({ stats, live }: { stats: StreamStats; live: boolean }) {
   const items = [
-    { icon: Users, label: 'Зрители', value: String(viewers), unit: 'онлайн' },
     {
       icon: Monitor,
       label: 'Видео',

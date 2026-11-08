@@ -1,6 +1,6 @@
 .video-stage {
   aspect-ratio: 16/9;
-  background: radial-gradient(ellipse at 50% 45%, #1e261b 0%, #111611 65%);
+  background: radial-gradient(ellipse at 50% 42%, #1d2a3b 0%, #101824 55%, #090e17 100%);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -11,13 +11,13 @@
   content: '';
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(#829d6a26 0.7px, transparent 0.7px);
+  background-image: radial-gradient(#a8c4e11f 0.7px, transparent 0.7px);
   background-size: 20px 20px;
   mask-image: radial-gradient(ellipse, #000 10%, transparent 80%);
   pointer-events: none;
 }
 .video-stage.has-stream {
-  background: #080b08;
+  background: #05080e;
 }
 .video-stage video {
   height: 100%;
@@ -31,23 +31,23 @@
 }
 .stage-label {
   position: absolute;
-  top: 17px;
-  left: 20px;
+  top: clamp(17px, 1.1vw, 42px);
+  left: clamp(20px, 1.3vw, 50px);
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 8px;
+  font-size: clamp(10px, 0.7vw, 22px);
   letter-spacing: 1.2px;
-  color: #839576;
+  color: #bdcee1;
   z-index: 1;
-  background: #11170fe0;
-  padding: 6px 8px;
-  border: 1px solid #35412a;
-  border-radius: 4px;
+  background: #101a28d9;
+  padding: clamp(6px, 0.5vw, 18px) clamp(8px, 0.7vw, 26px);
+  border: 1px solid #34485f;
+  border-radius: 8px;
 }
 .stage-label .status-dot {
-  width: 4px;
-  height: 4px;
+  width: clamp(5px, 0.35vw, 12px);
+  height: clamp(5px, 0.35vw, 12px);
 }
 .stage-empty {
   text-align: center;
@@ -55,30 +55,30 @@
   padding: 35px 15px;
 }
 .stage-empty-icon {
-  height: 70px;
-  width: 70px;
-  margin: 0 auto 20px;
+  height: clamp(70px, 4.5vw, 160px);
+  width: clamp(70px, 4.5vw, 160px);
+  margin: 0 auto clamp(20px, 1.4vw, 50px);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #c4f16a;
-  border: 1px solid #c4f16a2e;
-  background: #c4f16a08;
+  color: #c4d9f0;
+  border: 1px solid #c4d9f03c;
+  background: #c4d9f00c;
   box-shadow:
-    0 0 0 8px #c4f16a02,
-    0 0 40px #a6e44b05;
-  border-radius: 20px;
+    0 0 0 8px #c4d9f004,
+    0 0 50px #a5c6e31d;
+  border-radius: clamp(20px, 1.3vw, 44px);
 }
 .stage-empty h3 {
-  font-size: 17px;
+  font-size: clamp(17px, 1.2vw, 42px);
   letter-spacing: -0.3px;
-  color: #d4dec9;
+  color: #e1eaf5;
 }
 .stage-empty p {
-  font-size: 11px;
+  font-size: clamp(11px, 0.8vw, 28px);
   white-space: pre-line;
   margin-top: 10px;
-  color: #7d8f70;
+  color: #98adc2;
   line-height: 1.9;
 }
 .stage-controls {
@@ -89,15 +89,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px;
+  padding: clamp(12px, 0.9vw, 32px) clamp(18px, 1.2vw, 46px);
   z-index: 1;
   gap: 12px;
-  color: #708460;
-  background: linear-gradient(transparent, #0e150caa);
+  color: #b8cadd;
+  background: linear-gradient(transparent, #080f1bdd);
 }
 .stage-controls > span {
   min-width: 0;
-  font-size: 9px;
+  font-size: clamp(10px, 0.75vw, 26px);
 }
 .stage-controls > div {
   display: flex;
@@ -111,8 +111,8 @@
   gap: 6px;
 }
 .volume-control input[type='range'] {
-  width: 96px;
-  min-height: 29px;
+  width: clamp(96px, 6vw, 230px);
+  min-height: clamp(40px, 2.4vw, 86px);
   margin: 0;
   padding: 0;
   border: 0;
@@ -128,14 +128,14 @@
 }
 .stage-controls .icon-button {
   border-color: transparent;
-  width: 29px;
-  height: 29px;
-  background: #141b1166;
-  color: #a9ba99;
-  border-radius: 5px;
+  width: clamp(40px, 2.4vw, 86px);
+  height: clamp(40px, 2.4vw, 86px);
+  background: #1a2a3b99;
+  color: #d5e3f0;
+  border-radius: 9px;
 }
 .stage-controls .icon-button:hover {
-  background: #35412ab3;
+  background: #354e68d9;
 }
 .video-error {
   z-index: 3;
@@ -145,19 +145,19 @@
   right: 15px;
   background: #34281ef0;
   color: #ffceab;
-  font-size: 11px;
+  font-size: clamp(11px, 0.75vw, 24px);
   padding: 10px;
   border-radius: 6px;
 }
 .stats-bar {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  padding: 20px 0;
-  background: #181c17;
+  padding: clamp(20px, 1.2vw, 46px) 0;
+  background: #152130;
 }
 .stat {
-  padding: 0 20px;
-  border-right: 1px solid #2d3528;
+  padding: 0 clamp(20px, 1.3vw, 50px);
+  border-right: 1px solid #2c3d51;
 }
 .stat:last-child {
   border: 0;
@@ -166,19 +166,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 9px;
-  color: #7f9071;
+  font-size: clamp(10px, 0.7vw, 24px);
+  color: #9db0c5;
   white-space: nowrap;
 }
 .stat-label svg {
-  width: 13px;
-  height: 13px;
+  width: clamp(13px, 0.85vw, 30px);
+  height: clamp(13px, 0.85vw, 30px);
 }
 .stat-value {
   margin-top: 10px;
-  font-size: 20px;
+  font-size: clamp(20px, 1.25vw, 46px);
   font-weight: 500;
-  color: #d5e1cb;
+  color: #e6eff9;
   display: flex;
   align-items: baseline;
   gap: 7px;
@@ -186,8 +186,8 @@
   letter-spacing: -0.5px;
 }
 .stat-value span {
-  font-size: 9px;
-  color: #76876a;
+  font-size: clamp(10px, 0.7vw, 24px);
+  color: #8fa5bc;
   font-weight: 400;
   letter-spacing: 0;
 }
@@ -196,12 +196,12 @@
   align-items: center;
   gap: 9px;
   margin-top: 27px;
-  color: #a6c28c;
+  color: #bbd0e5;
   border-radius: 20px;
-  background: #c4f16a08;
-  border: 1px solid #c4f16a1f;
+  background: #c4d9f00b;
+  border: 1px solid #c4d9f02c;
   padding: 8px 12px;
-  font-size: 10px;
+  font-size: clamp(10px, 0.7vw, 24px);
 }
 .waiting-label .tiny-dot {
   background: var(--lime);

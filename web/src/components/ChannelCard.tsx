@@ -96,6 +96,11 @@ export function ChannelCard({
           <Link2 size={19} />
         </span>
         <h2>Канал</h2>
+        {identity && (
+          <span className="channel-nickname" title={`Канал @${identity.nickname}`}>
+            @{identity.nickname}
+          </span>
+        )}
       </div>
       {identity ? (
         <>

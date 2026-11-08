@@ -28,7 +28,7 @@ export function Studio({
   });
   const publisher = usePublisher(identity, config);
   const stats = usePeerStats(publisher.pc, true);
-  const { status, reachable } = useChannelStatus(identity?.nickname ?? '');
+  const { reachable } = useChannelStatus(identity?.nickname ?? '');
 
   const updating = application.updatePhase !== 'idle';
   const busy = publisher.phase !== 'idle' || application.stopping;
@@ -72,6 +72,7 @@ export function Studio({
               className="button secondary shutdown-button"
               disabled={application.stopping || updating}
               onClick={() => void shutdown()}
+              aria-label={application.stopping ? 'Выключаем приложение' : 'Выключить приложение'}
               title="Завершить эфир и полностью закрыть Sidecast"
             >
               <Power size={15} />
@@ -142,26 +143,9 @@ export function Studio({
         )}
         <div className="studio-grid">
           <div className="main-column">
-            {!identity && (
-              <ChannelCard
-                identity={null}
-                config={config}
-                onIdentity={remember}
-                disabled={!config || busy || updating}
-              />
-            )}
             <section className="card preview-card">
-              <div className="preview-heading">
-                <div className="section-heading">
-                  <span className="section-icon">
-                    <Radio size={18} />
-                  </span>
-                  <h2>Трансляция</h2>
-                </div>
-                {identity && <span className="subtle">@{identity.nickname}</span>}
-              </div>
               <VideoStage stream={publisher.stream} preview live={live} />
-              <StatsBar stats={stats} viewers={status?.viewers ?? 0} live={live} />
+              <StatsBar stats={stats} live={live} />
               <div className="broadcast-actions">
                 <div>
                   <span className={`action-status ${live ? 'text-green' : ''}`}>
@@ -202,6 +186,17 @@ export function Studio({
                 </p>
               )}
             </section>
+          </div>
+          <aside className="side-column" aria-label="Панель управления эфиром">
+            {!identity && (
+              <ChannelCard
+                identity={null}
+                config={config}
+                onIdentity={remember}
+                disabled={!config || busy || updating}
+              />
+            )}
+            <StreamSettings value={settings} onChange={setSettings} disabled={busy || updating} />
             {identity && (
               <ChannelCard
                 identity={identity}
@@ -215,10 +210,7 @@ export function Studio({
                 {saveError}
               </p>
             )}
-          </div>
-          <div className="side-column">
-            <StreamSettings value={settings} onChange={setSettings} disabled={busy || updating} />
-          </div>
+          </aside>
         </div>
       </main>
     </>

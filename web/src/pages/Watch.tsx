@@ -1,4 +1,3 @@
-import { Users } from 'lucide-react';
 import { Brand } from '../components/Brand';
 import { VideoStage } from '../components/VideoStage';
 import { useChannelStatus } from '../hooks/useChannelStatus';
@@ -44,10 +43,6 @@ export function Watch({ nickname, config }: { nickname: string; config: ServerCo
           <h1 title={nickname}>{nickname}</h1>
           {viewer.connected && (
             <div className="watch-details">
-              <span className="watch-viewers" aria-label={`Зрителей: ${status?.viewers ?? 0}`}>
-                <Users size={15} aria-hidden="true" />
-                {status?.viewers ?? 0}
-              </span>
               {!!stats.height && <span>{stats.height}p</span>}
               {!!stats.fps && <span>{Math.round(stats.fps)} FPS</span>}
             </div>
