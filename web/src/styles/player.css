@@ -26,6 +26,11 @@
   object-fit: contain;
   inset: 0;
 }
+.video-stage video:fullscreen {
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+}
 .video-stage:not(.has-stream) video {
   visibility: hidden;
 }
@@ -44,10 +49,6 @@
   padding: clamp(6px, 0.5vw, 18px) clamp(8px, 0.7vw, 26px);
   border: 1px solid #34485f;
   border-radius: 8px;
-}
-.stage-label .status-dot {
-  width: clamp(5px, 0.35vw, 12px);
-  height: clamp(5px, 0.35vw, 12px);
 }
 .stage-empty {
   text-align: center;
@@ -104,27 +105,6 @@
   align-items: center;
   flex-shrink: 0;
   gap: 6px;
-}
-.volume-control {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.volume-control input[type='range'] {
-  width: clamp(96px, 6vw, 230px);
-  min-height: clamp(40px, 2.4vw, 86px);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  accent-color: var(--lime);
-  cursor: pointer;
-}
-.volume-control input[type='range']:focus-visible {
-  outline: 2px solid var(--lime);
-  outline-offset: 2px;
 }
 .stage-controls .icon-button {
   border-color: transparent;
@@ -276,9 +256,6 @@
   }
   .stage-controls > span {
     font-size: 8px;
-  }
-  .volume-control input[type='range'] {
-    width: 72px;
   }
   .stats-bar {
     padding: 15px 0;

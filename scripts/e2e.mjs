@@ -242,25 +242,17 @@ try {
   })).toBe(40_000_000);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.videoWidth),{timeout:25000}).toBe(1920);
   await expect.poll(() => viewer.locator('video').evaluate(video => video.getVideoPlaybackQuality().totalVideoFrames),{timeout:10000}).toBeGreaterThan(10);
-  await expect(viewer.locator('.watch-player').getByRole('status')).toHaveText(/в эфире/i);
+  const viewerVideo = viewer.locator('.watch-player video');
+  await expect(viewerVideo).toHaveJSProperty('controls',true);
+  await expect(viewer.locator('.watch-player .stage-label')).toHaveCount(0);
+  await expect(viewer.locator('.watch-player .stage-controls')).toHaveCount(0);
   await expect(viewer.locator('.watch-details')).toContainText(/\d+p/);
-  await viewer.getByRole('button',{name:'Включить звук',exact:true}).click();
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.srcObject?.getAudioTracks().length)).toBe(1);
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.muted)).toBe(false);
-  const volume = viewer.getByRole('slider', { name: 'Громкость', exact: true });
-  await expect(volume).toHaveValue('100');
-  await volume.press('Home');
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.volume)).toBe(0);
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.muted)).toBe(true);
-  await volume.press('End');
-  await volume.press('ArrowLeft');
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.volume)).toBe(0.99);
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.muted)).toBe(false);
-  await viewer.getByRole('button', { name: 'Выключить звук', exact: true }).click();
-  await expect(volume).toHaveValue('0');
-  await viewer.getByRole('button', { name: 'Включить звук', exact: true }).click();
-  await expect(volume).toHaveValue('99');
-  await expect.poll(() => viewer.locator('video').evaluate(video => video.volume)).toBe(0.99);
+  await expect.poll(() => viewerVideo.evaluate(video => video.srcObject?.getAudioTracks().length)).toBe(1);
+  await expect(viewerVideo).toHaveJSProperty('muted',true);
+  await viewerVideo.evaluate(video => { video.volume = 0.35; video.muted = false; });
+  await expect(viewerVideo).toHaveJSProperty('volume',0.35);
+  await expect(viewerVideo).toHaveJSProperty('muted',false);
+  await viewerVideo.evaluate(video => { video.volume = 1; });
   await expect.poll(() => viewer.evaluate(async () => {
     for (const peer of window.__testPeers) for (const stat of (await peer.getStats()).values()) {
       if (stat.type === 'inbound-rtp' && stat.kind === 'audio' && stat.bytesReceived > 0 && stat.totalAudioEnergy > 0) return true;
@@ -269,26 +261,22 @@ try {
   }),{timeout:15000}).toBe(true);
   await stereoAudio(studio,viewer);
   await viewerSurvivesControlGlitches(viewer);
-  const fullscreenButton = viewer.getByRole('button',{name:'Полный экран',exact:true});
-  const exitFullscreenButton = viewer.getByRole('button',{name:'Выйти из полного экрана',exact:true});
-  await fullscreenButton.click();
-  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === document.querySelector('.watch-player .video-stage'))).toBe(true);
-  await expect(exitFullscreenButton).toHaveAttribute('aria-pressed','true');
-  await exitFullscreenButton.click();
-  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
-  await expect(fullscreenButton).toHaveAttribute('aria-pressed','false');
-  await fullscreenButton.click();
-  await expect(exitFullscreenButton).toBeVisible();
+  const enterVideoFullscreen = async () => {
+    await viewerVideo.evaluate(video => {
+      video.addEventListener('click', () => { void video.requestFullscreen().catch(() => {}); }, {once:true});
+    });
+    await viewerVideo.click();
+    await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === document.querySelector('.watch-player video'))).toBe(true);
+  };
+  await enterVideoFullscreen();
   await viewer.evaluate(() => document.exitFullscreen());
-  await expect(fullscreenButton).toHaveAttribute('aria-pressed','false');
+  await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await studio.screenshot({path:resolve(output,'studio-live.png'),fullPage:true});
   await viewer.screenshot({path:resolve(output,'watch-live.png'),fullPage:true});
-  await fullscreenButton.click();
-  await expect(exitFullscreenButton).toBeVisible();
+  await enterVideoFullscreen();
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
-  await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
-  await exitFullscreenButton.click();
   await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
+  await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
   await studio.getByRole('button',{name:'Без звука',exact:true}).click();
   await expect(studio.getByRole('button',{name:'Без звука',exact:true})).toHaveAttribute('aria-pressed','true');
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
@@ -315,12 +303,8 @@ try {
   await decodedVideo(viewer);
   for (const [width,height,name] of [[1920,1080,'desktop'],[1366,768,'laptop'],[390,844,'mobile'],[844,390,'landscape'],[320,568,'small']]) {
     await watchFits(viewer,{width,height},`watch-${name}.png`);
-    await expect(viewer.getByRole('slider',{name:'Громкость',exact:true})).toBeVisible();
-    await expect(viewer.getByRole('button',{name:'Полный экран',exact:true})).toBeVisible();
-    expect(await viewer.getByRole('button',{name:'Полный экран',exact:true}).evaluate(button => {
-      const rect = button.getBoundingClientRect();
-      return rect.left >= 0 && rect.top >= 0 && rect.right <= innerWidth && rect.bottom <= innerHeight;
-    })).toBe(true);
+    await expect(viewerVideo).toHaveJSProperty('controls',true);
+    await expect(viewer.locator('.watch-player .stage-controls')).toHaveCount(0);
   }
   await studio.setViewportSize({width:390,height:844}); await studio.screenshot({path:resolve(output,'studio-mobile.png'),fullPage:true});
   expect(await studio.evaluate(()=>document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
@@ -392,6 +376,6 @@ try {
   })]);
   expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video, nonzero audio energy, independent left/right stereo and preserved low/mid/high frequency balance → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer has no footer or studio link; live badge stays inside the player','fullscreen button toggles both ways, follows browser exit and remains usable after the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video, nonzero audio energy, independent left/right stereo and preserved low/mid/high frequency balance → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer uses native video controls without a live badge or custom toolbar','video enters fullscreen, follows browser exit, and exits when the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
   writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }

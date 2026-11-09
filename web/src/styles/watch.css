@@ -138,30 +138,6 @@ body:has(.watch-page) {
   color: #98abc0;
 }
 
-.watch-player .stage-label {
-  top: clamp(112px, 7vw, 220px);
-  left: clamp(32px, 3vw, 108px);
-  border: 0;
-  padding: 8px 12px;
-  border-radius: 9px;
-  background: #dceaff1b;
-  backdrop-filter: blur(20px);
-  color: #e6eef8;
-  font-size: clamp(11px, 0.75vw, 15px);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.watch-player .stage-label.is-live {
-  background: #e65368;
-  color: #fff;
-}
-
-.watch-player .stage-label .status-dot {
-  display: none;
-}
-
 .watch-player .stage-empty {
   max-width: 680px;
   padding: 100px 24px;
@@ -201,59 +177,6 @@ body:has(.watch-page) {
   font-size: 13px;
 }
 
-.watch-player .stage-controls {
-  align-items: end;
-  gap: 14px;
-  left: clamp(22px, 2vw, 72px);
-  right: clamp(22px, 2vw, 72px);
-  bottom: clamp(18px, 1.4vw, 50px);
-  padding: 0;
-  background: none;
-  color: #c5d5e5;
-}
-
-.watch-player .stage-controls > div {
-  gap: 7px;
-  padding: 7px;
-  border-radius: 18px;
-  background: #d5e6f51e;
-  box-shadow: 0 14px 34px #0207114a;
-  backdrop-filter: blur(20px);
-}
-
-.watch-player .stage-controls .icon-button {
-  width: 48px;
-  height: 48px;
-  border-radius: 11px;
-  border: 0;
-  background: transparent;
-  color: #eff6ff;
-  box-shadow: none;
-}
-
-.watch-player .stage-controls .icon-button svg {
-  width: 23px;
-  height: 23px;
-}
-
-.watch-player .stage-controls .icon-button:hover {
-  background: #334d66e6;
-}
-
-.watch-player .volume-control {
-  gap: 12px;
-}
-
-.watch-player .volume-control input[type='range'] {
-  width: clamp(110px, 8vw, 170px);
-  min-height: 48px;
-  background: transparent;
-}
-
-.watch-player .video-stage:fullscreen {
-  border-radius: 0;
-}
-
 .watch-player .video-error {
   left: clamp(20px, 3vw, 64px);
   right: clamp(20px, 3vw, 64px);
@@ -289,12 +212,6 @@ body:has(.watch-page) {
   .watch-details {
     font-size: clamp(18px, calc(0.5vw + 10px), 30px);
   }
-  .watch-player .stage-label {
-    top: clamp(112px, 7vw, 220px);
-    left: clamp(32px, 3vw, 108px);
-    padding: clamp(11px, 0.5vw, 18px) clamp(16px, 0.7vw, 28px);
-    font-size: clamp(15px, calc(0.6vw + 6px), 30px);
-  }
   .watch-player .stage-empty {
     max-width: clamp(680px, 35vw, 1200px);
   }
@@ -312,26 +229,6 @@ body:has(.watch-page) {
   }
   .watch-player .stage-empty p {
     font-size: clamp(19px, calc(0.5vw + 11px), 30px);
-  }
-  .watch-player .stage-controls {
-    gap: clamp(14px, 0.5vw, 20px);
-    padding: 0;
-  }
-  .watch-player .stage-controls .icon-button {
-    width: clamp(64px, min(calc(1.5vw + 40px), 8vh), 100px);
-    height: clamp(64px, min(calc(1.5vw + 40px), 8vh), 100px);
-    border-radius: clamp(13px, 0.4vw, 18px);
-  }
-  .watch-player .stage-controls .icon-button svg {
-    width: clamp(29px, min(calc(0.8vw + 16px), 3.7vh), 46px);
-    height: clamp(29px, min(calc(0.8vw + 16px), 3.7vh), 46px);
-  }
-  .watch-player .volume-control {
-    gap: clamp(12px, 0.45vw, 18px);
-  }
-  .watch-player .volume-control input[type='range'] {
-    width: clamp(150px, calc(7vw + 40px), 340px);
-    min-height: clamp(64px, min(calc(1.5vw + 40px), 8vh), 100px);
   }
   .watch-player .waiting-label {
     padding: clamp(13px, 0.5vw, 20px) clamp(18px, 0.75vw, 30px);
@@ -396,13 +293,6 @@ body:has(.watch-page) {
     font-size: 12px;
   }
 
-  .watch-player .stage-label {
-    top: 76px;
-    left: 16px;
-    padding: 7px 9px;
-    font-size: 10px;
-  }
-
   .watch-player .stage-empty {
     padding: 80px 20px;
   }
@@ -419,33 +309,6 @@ body:has(.watch-page) {
 
   .watch-player .stage-empty p {
     font-size: 14px;
-  }
-
-  .watch-player .stage-controls {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-    padding: 0;
-  }
-
-  .watch-player .stage-controls > div {
-    padding: 2px;
-    border-radius: 12px;
-  }
-
-  .watch-player .stage-controls .icon-button {
-    width: 44px;
-    height: 44px;
-  }
-
-  .watch-player .stage-controls .icon-button svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  .watch-player .volume-control input[type='range'] {
-    width: 80px;
-    min-height: 44px;
   }
 
   .watch-player .video-error {
@@ -473,11 +336,6 @@ body:has(.watch-page) {
 
   .watch-channel {
     bottom: 82px;
-  }
-
-  .watch-player .stage-label {
-    top: 56px;
-    left: 16px;
   }
 
   .watch-player .stage-empty {

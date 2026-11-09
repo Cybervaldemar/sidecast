@@ -594,15 +594,6 @@
   border-radius: 8px;
   backdrop-filter: blur(20px);
 }
-.host-studio .stage-label.is-live {
-  color: #ffc2c4;
-  background: #351b26e8;
-  border-color: #ab5761;
-}
-.host-studio .stage-label.is-live .status-dot {
-  background: #ff717e;
-  box-shadow: 0 0 10px #ff717e80;
-}
 .host-studio .stage-empty-icon {
   color: var(--lime);
   border-color: transparent;

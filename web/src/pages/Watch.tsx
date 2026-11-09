@@ -9,7 +9,6 @@ export function Watch({ nickname, config }: { nickname: string; config: ServerCo
   const { status, reachable } = useChannelStatus(nickname);
   const viewer = useViewer(nickname, status?.sessionId ?? '', !!status?.live, config);
   const stats = usePeerStats(viewer.pc, false);
-  const live = !!status?.live && (reachable || viewer.connected);
 
   return (
     <div className="watch-page">
@@ -20,7 +19,6 @@ export function Watch({ nickname, config }: { nickname: string; config: ServerCo
         <section className="watch-player" aria-label={`Трансляция ${nickname}`}>
           <VideoStage
             stream={viewer.stream}
-            live={live}
             waiting={!status?.live}
             connectionError={viewer.error}
             title={

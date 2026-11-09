@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Maximize, Minimize, MonitorPlay, PictureInPicture2, Volume2, VolumeX } from 'lucide-react';
+import { Maximize, Minimize, MonitorPlay } from 'lucide-react';
 
 export function VideoStage({
   stream,
@@ -20,10 +20,7 @@ export function VideoStage({
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const container = useRef<HTMLDivElement>(null);
-  const lastAudibleVolume = useRef(1);
 
-  const [muted, setMuted] = useState(true);
-  const [volume, setVolume] = useState(1);
   const [error, setError] = useState('');
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -45,26 +42,10 @@ export function VideoStage({
     if (stream)
       void video.current
         .play()
-        .catch(() => setError('Нажмите на видео, чтобы начать воспроизведение.'));
-  }, [stream]);
-
-  async function changeVolume(nextVolume: number) {
-    if (!video.current) return;
-
-    if (nextVolume > 0) lastAudibleVolume.current = nextVolume;
-
-    video.current.volume = nextVolume;
-    video.current.muted = nextVolume === 0;
-    setVolume(nextVolume);
-    setMuted(nextVolume === 0);
-
-    try {
-      await video.current.play();
-      setError('');
-    } catch {
-      setError('Браузер не разрешил воспроизведение. Нажмите на видео.');
-    }
-  }
+        .catch(() => setError('Нажмите кнопку воспроизведения, чтобы начать просмотр.'));
+    else if (!preview && document.fullscreenElement === video.current)
+      void document.exitFullscreen().catch(() => {});
+  }, [stream, preview]);
 
   async function toggleFullscreen() {
     if (!container.current) return;
@@ -87,21 +68,18 @@ export function VideoStage({
 
   return (
     <div className={`video-stage ${stream ? 'has-stream' : ''}`} ref={container}>
-      <div className={`stage-label ${live ? 'is-live' : ''}`} role="status">
-        <span className={`status-dot ${live ? 'live' : ''}`} aria-hidden="true" />
-        {live ? 'В эфире' : preview ? 'ПРЕДПРОСМОТР' : 'Не в эфире'}
-      </div>
+      {preview && (
+        <div className="stage-label" role="status">
+          ПРЕДПРОСМОТР
+        </div>
+      )}
       <video
         ref={video}
         autoPlay
         playsInline
-        muted={preview || muted}
-        onClick={() => {
-          void video.current
-            ?.play()
-            .then(() => setError(''))
-            .catch(() => {});
-        }}
+        muted
+        controls={!!stream && !preview}
+        onPlay={() => setError('')}
         aria-label={preview ? 'Предпросмотр трансляции' : 'Видеотрансляция'}
       />
       {!stream && (
@@ -118,56 +96,16 @@ export function VideoStage({
           )}
         </div>
       )}
-      {(preview || stream || fullscreen) && (
+      {preview && (
         <div className="stage-controls">
-          {preview ? (
-            <span>
-              {stream
-                ? 'Локальный предпросмотр · звук выключен'
-                : live
-                  ? 'Просмотр доступен по ссылке зрителя'
-                  : 'Готовы, когда будете готовы вы'}
-            </span>
-          ) : stream ? (
-            <div className="volume-control">
-              <button
-                className="icon-button"
-                onClick={() =>
-                  void changeVolume(muted || volume === 0 ? lastAudibleVolume.current : 0)
-                }
-                aria-label={muted ? 'Включить звук' : 'Выключить звук'}
-              >
-                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={muted ? 0 : Math.round(volume * 100)}
-                onChange={(event) => void changeVolume(Number(event.target.value) / 100)}
-                aria-label="Громкость"
-                aria-valuetext={`${muted ? 0 : Math.round(volume * 100)}%`}
-                title="Громкость"
-              />
-            </div>
-          ) : (
-            <span />
-          )}
+          <span>
+            {stream
+              ? 'Локальный предпросмотр · звук выключен'
+              : live
+                ? 'Просмотр доступен по ссылке зрителя'
+                : 'Готовы, когда будете готовы вы'}
+          </span>
           <div>
-            {stream && !preview && 'requestPictureInPicture' in HTMLVideoElement.prototype && (
-              <button
-                className="icon-button"
-                onClick={() => {
-                  void video.current
-                    ?.requestPictureInPicture()
-                    .catch(() => setError('Режим «картинка в картинке» недоступен.'));
-                }}
-                aria-label="Картинка в картинке"
-              >
-                <PictureInPicture2 size={18} />
-              </button>
-            )}
             <button
               className="icon-button"
               disabled={!stream && !fullscreen}
