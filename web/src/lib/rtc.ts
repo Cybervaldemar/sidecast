@@ -1,8 +1,6 @@
 import type { StreamSettings, StreamStats } from '../types';
 import { AUDIO_BITRATE, GAME_AUDIO_CONSTRAINTS, withGameAudio } from './audio';
 
-const VIDEO_MAX_BITRATE = 20_000_000;
-
 export async function offer(pc: RTCPeerConnection): Promise<RTCSessionDescriptionInit> {
   const done = new Promise<void>((resolve, reject) => {
     const cleanup = () => {
@@ -60,12 +58,32 @@ export async function capture(settings: StreamSettings) {
   // below decides whether resolution or frame rate may be reduced.
   for (const track of stream.getVideoTracks()) track.contentHint = 'motion';
 
+  let audioWarning = '';
+
   for (const track of stream.getAudioTracks()) {
     track.contentHint = 'music';
-    await track.applyConstraints(GAME_AUDIO_CONSTRAINTS).catch(() => {});
+    try {
+      await track.applyConstraints(GAME_AUDIO_CONSTRAINTS);
+    } catch {
+      audioWarning = 'Браузер не смог применить настройки звука. Звук может обрабатываться.';
+    }
+
+    const actual = track.getSettings();
+    const activeProcessing = (
+      [
+        ['echoCancellation', 'подавление эха'],
+        ['noiseSuppression', 'подавление шума'],
+        ['autoGainControl', 'автоматическая громкость'],
+      ] as const
+    )
+      .filter(([setting]) => actual[setting] === true)
+      .map(([, label]) => label);
+
+    if (activeProcessing.length)
+      audioWarning = `Браузер оставил включённой обработку звука: ${activeProcessing.join(', ')}.`;
   }
 
-  return stream;
+  return { stream, audioWarning };
 }
 
 export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
@@ -79,7 +97,7 @@ export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
         settings.videoPriority === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
 
     for (const e of p.encodings) {
-      e.maxBitrate = sender.track?.kind === 'video' ? VIDEO_MAX_BITRATE : AUDIO_BITRATE;
+      e.maxBitrate = sender.track?.kind === 'video' ? settings.bitrate * 1_000_000 : AUDIO_BITRATE;
 
       if (sender.track?.kind === 'video') {
         e.maxFramerate = settings.fps;

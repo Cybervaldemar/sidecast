@@ -20,6 +20,7 @@ export interface ChannelStatus {
 
 export interface StreamSettings {
   fps: number;
+  bitrate: number;
   videoPriority: 'resolution' | 'motion';
   audio: boolean;
 }

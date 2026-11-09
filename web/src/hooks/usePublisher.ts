@@ -19,6 +19,7 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
   const [pc, setPC] = useState<RTCPeerConnection | null>(null);
   const [phase, setPhase] = useState<'idle' | 'starting' | 'live'>('idle');
   const [error, setError] = useState('');
+  const [audioWarning, setAudioWarning] = useState('');
 
   const stop = useCallback(() => {
     generation.current++;
@@ -42,6 +43,7 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
     setPC(null);
     setStream(null);
     setPhase('idle');
+    setAudioWarning('');
   }, []);
 
   useEffect(() => {
@@ -63,12 +65,13 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
     const revision = ++generation.current;
 
     setError('');
+    setAudioWarning('');
     setPhase('starting');
 
     let current: Active | null = null;
 
     try {
-      const media = await capture(settings);
+      const { stream: media, audioWarning: captureWarning } = await capture(settings);
 
       if (revision !== generation.current) {
         media.getTracks().forEach((track) => track.stop());
@@ -82,6 +85,7 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
       active.current = current;
       setStream(media);
       setPC(peer);
+      setAudioWarning(captureWarning);
       media.getVideoTracks()[0].addEventListener('ended', stop, { once: true });
 
       for (const track of media.getTracks()) peer.addTrack(track, media);
@@ -134,5 +138,5 @@ export function usePublisher(identity: Identity | null, config: ServerConfig | n
     }
   };
 
-  return { start, stop, stream, pc, phase, error };
+  return { start, stop, stream, pc, phase, error, audioWarning };
 }

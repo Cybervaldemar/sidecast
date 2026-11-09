@@ -23,6 +23,7 @@ export function Studio({
   const [saveError, setSaveError] = useState('');
   const [settings, setSettings] = useState<Settings>({
     fps: 60,
+    bitrate: 20,
     videoPriority: 'motion',
     audio: true,
   });
@@ -183,6 +184,11 @@ export function Studio({
               {publisher.error && (
                 <p className="error inline-error" role="alert">
                   {publisher.error}
+                </p>
+              )}
+              {publisher.audioWarning && (
+                <p className="error inline-error" role="alert">
+                  {publisher.audioWarning}
                 </p>
               )}
             </section>

@@ -205,23 +205,13 @@ try {
   );
   await studio.locator('#video-priority').selectOption(videoPriority);
   for (const bitrate of bitrates) {
+    await studio.locator('#bitrate').selectOption(String(bitrate));
     await studio.getByRole('button', { name: 'Начать трансляцию', exact: true }).click();
     const warmupSamples = [];
     const warmupStarted = Date.now();
     let warmupStage = 'video';
     try {
       await expect(studio.getByText('Вы в эфире', { exact: true })).toBeVisible({ timeout: 25000 });
-      // Diagnostic runs can compare encoder caps without exposing a quality
-      // selector in the studio. The product itself uses one fixed cap.
-      await studio.evaluate(async (limit) => {
-        const peer = window.__testPeers.at(-1);
-        const sender = peer?.getSenders().find((value) => value.track?.kind === 'video');
-        if (!sender) throw new Error('Video sender is unavailable');
-        const parameters = sender.getParameters();
-        if (!parameters.encodings.length) throw new Error('Video encoding is unavailable');
-        for (const encoding of parameters.encodings) encoding.maxBitrate = limit * 1_000_000;
-        await sender.setParameters(parameters);
-      }, bitrate);
       await expect
         .poll(
           async () => {
