@@ -66,7 +66,7 @@ export function errorMessage(error: unknown): string {
     return 'Выбор экрана отменён или браузер не разрешил захват.';
 
   if (error instanceof DOMException && error.message.includes('Could not start audio source'))
-    return 'Браузер не смог запустить захват звука. Проверьте устройство вывода звука в системе и повторите попытку. Эфир можно запустить без звука.';
+    return 'Браузер не смог запустить захват звука. Проверьте устройство вывода звука и повторите попытку. Для эфира без звука выключите передачу звука в диалоге браузера.';
 
   return error instanceof Error ? error.message : 'Не удалось выполнить действие.';
 }

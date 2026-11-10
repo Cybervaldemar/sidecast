@@ -25,7 +25,7 @@ export function Studio({
     fps: 60,
     bitrate: 20,
     videoPriority: 'motion',
-    audio: true,
+    audioSource: 'system',
   });
   const publisher = usePublisher(identity, config);
   const stats = usePeerStats(publisher.pc, true);

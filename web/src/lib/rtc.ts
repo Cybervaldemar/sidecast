@@ -43,13 +43,15 @@ export async function capture(settings: StreamSettings) {
   if (!window.isSecureContext || !navigator.mediaDevices?.getDisplayMedia)
     throw new Error('Для захвата экрана откройте студию через localhost на компьютере ведущего.');
 
+  const windowAudio = settings.audioSource === 'window';
   const options = {
     video: { frameRate: { ideal: settings.fps, max: settings.fps }, displaySurface: 'window' },
     // Let Chrome start the audio source with its own defaults. Apply the
     // game-audio preferences to the track only after capture succeeds.
-    audio: settings.audio,
-    systemAudio: settings.audio ? 'include' : 'exclude',
-    windowAudio: settings.audio ? 'window' : 'exclude',
+    audio: true,
+    systemAudio: windowAudio ? 'exclude' : 'include',
+    windowAudio: windowAudio ? 'window' : 'system',
+    ...(windowAudio ? { monitorTypeSurfaces: 'exclude' } : {}),
     selfBrowserSurface: 'exclude',
   } as DisplayMediaStreamOptions;
   const stream = await navigator.mediaDevices.getDisplayMedia(options);

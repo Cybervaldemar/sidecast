@@ -4,6 +4,7 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
     configurable: true,
     value: async options => {
       captureCalls++;
+      (window.__testCaptureOptions ??= []).push(structuredClone(options));
       const query = new URL(location.href).searchParams;
       const scenario = query.get('capture');
       if (scenario === 'cancel') throw new DOMException('Test cancellation', 'NotAllowedError');

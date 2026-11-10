@@ -62,27 +62,32 @@ export function StreamSettings({
           <option value="resolution">Сохранять разрешение</option>
           <option value="motion">Сохранять плавность</option>
         </select>
-        <label className="setting-label">
-          <Volume2 size={15} /> Передавать звук
-        </label>
-        <div className="segmented" role="group" aria-label="Передавать звук">
+        <div className="setting-label" id="audio-source-label">
+          <Volume2 size={15} /> Источник звука
+        </div>
+        <div className="segmented" role="group" aria-labelledby="audio-source-label">
           <button
             type="button"
-            aria-pressed={value.audio}
-            className={value.audio ? 'selected' : ''}
-            onClick={() => onChange({ ...value, audio: true })}
+            aria-pressed={value.audioSource === 'window'}
+            className={value.audioSource === 'window' ? 'selected' : ''}
+            onClick={() => onChange({ ...value, audioSource: 'window' })}
           >
-            Со звуком
+            Звук окна
           </button>
           <button
             type="button"
-            aria-pressed={!value.audio}
-            className={!value.audio ? 'selected' : ''}
-            onClick={() => onChange({ ...value, audio: false })}
+            aria-pressed={value.audioSource === 'system'}
+            className={value.audioSource === 'system' ? 'selected' : ''}
+            onClick={() => onChange({ ...value, audioSource: 'system' })}
           >
-            Без звука
+            Звук ПК
           </button>
         </div>
+        <p className="field-hint">
+          В диалоге Chrome отдельно включите или выключите передачу звука. Если переключатель
+          выключен, эфир будет без аудио. «Звук ПК» может помочь убрать звуки DualSense, если они
+          идут через отдельный выход.
+        </p>
         <details className="settings-help">
           <summary>О видео и звуке</summary>
           <p className="field-hint">
@@ -100,8 +105,18 @@ export function StreamSettings({
             серверу нужен запас исходящей скорости для каждого зрителя.
           </p>
           <p className="field-hint">
-            Если звук включён здесь, выберите его передачу в диалоге браузера при запуске. Доступные
-            источники звука зависят от браузера и ОС.
+            Выбор источника звука подсказывает браузеру, какой звук предложить при выборе окна.
+            Окончательное решение о передаче аудио вы принимаете в диалоге браузера. Для режима
+            «Звук окна» выберите окно игры. Этот звук может включать сигналы DualSense, которые
+            создаёт сама игра, даже если они выводятся через отдельное устройство. Браузер и ОС
+            могут не поддерживать изоляцию звука окна и предложить системный звук или видео без
+            звука.
+          </p>
+          <p className="field-hint">
+            «Звук ПК» запрашивает системный звук: обычно это общий звук основного выхода, включая
+            другие приложения. Звуки, направленные на отдельный аудиовыход DualSense, могут в него
+            не попасть. При выборе окна браузер может предложить системный звук; доступность зависит
+            от браузера и ОС.
           </p>
           <p className="field-hint">
             Если смотрите свой эфир на том же компьютере, выключите звук в окне зрителя: при захвате

@@ -211,8 +211,9 @@ try {
   expect(await studio.locator('#bitrate option').evaluateAll(options => options.map(option => Number(option.value)))).toEqual([6,12,20,40]);
   await studio.locator('#bitrate').selectOption('40');
   await expect(studio.locator('#bitrate')).toHaveValue('40');
-  await expect(studio.locator('#audio')).toHaveCount(0);
-  await expect(studio.getByRole('button',{name:'Со звуком',exact:true})).toHaveAttribute('aria-pressed','true');
+  await expect(studio.getByRole('button',{name:'Со звуком',exact:true})).toHaveCount(0);
+  await expect(studio.getByRole('button',{name:'Без звука',exact:true})).toHaveCount(0);
+  await expect(studio.getByRole('button',{name:'Звук ПК',exact:true})).toHaveAttribute('aria-pressed','true');
   await studio.screenshot({path:resolve(output,'studio-empty.png'),fullPage:true});
   await studio.getByLabel('Никнейм',{exact:true}).fill('test-streamer');
   await studio.getByRole('button',{name:'Создать канал',exact:true}).click();
@@ -236,6 +237,10 @@ try {
   await viewer.setViewportSize({width:1440,height:900});
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
+  expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).toMatchObject({
+    audio:true,systemAudio:'include',windowAudio:'system',
+  });
+  expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).not.toHaveProperty('monitorTypeSurfaces');
   await expect.poll(() => studio.evaluate(() => {
     const sender = window.__testPeers.at(-1)?.getSenders().find(value => value.track?.kind === 'video');
     return sender?.getParameters().encodings[0]?.maxBitrate;
@@ -277,15 +282,27 @@ try {
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
   await expect.poll(() => viewer.evaluate(() => document.fullscreenElement === null)).toBe(true);
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
-  await studio.getByRole('button',{name:'Без звука',exact:true}).click();
-  await expect(studio.getByRole('button',{name:'Без звука',exact:true})).toHaveAttribute('aria-pressed','true');
+  await studio.getByRole('button',{name:'Звук окна',exact:true}).click();
+  await expect(studio.getByRole('button',{name:'Звук окна',exact:true})).toHaveAttribute('aria-pressed','true');
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await decodedVideo(viewer);
+  expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).toMatchObject({
+    audio:true,systemAudio:'exclude',windowAudio:'window',monitorTypeSurfaces:'exclude',
+  });
+  await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
+  await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
+  await studio.getByRole('button',{name:'Звук ПК',exact:true}).click();
+  await studio.evaluate(() => history.replaceState(null,'','?capture=noaudio-all'));
+  await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
+  await decodedVideo(viewer);
+  expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).toMatchObject({
+    audio:true,systemAudio:'include',windowAudio:'system',
+  });
   await expect.poll(() => studio.locator('video').evaluate(video => video.srcObject?.getAudioTracks().length)).toBe(0);
   await expect.poll(() => studio.evaluate(() => window.__testPeers.at(-1)?.getSenders().filter(sender => sender.track?.kind === 'audio').length)).toBe(0);
   await studio.getByRole('button',{name:'Завершить эфир',exact:true}).click();
   await expect(viewer.getByRole('heading',{name:'test-streamer сейчас не в эфире'})).toBeVisible({timeout:12000});
-  await studio.getByRole('button',{name:'Со звуком',exact:true}).click();
+  await studio.evaluate(() => history.replaceState(null,'',location.pathname));
   await stopServer(); startServer(); await ready();
   const status = await fetch(`${origin}/api/channels/test-streamer`).then(r=>r.json());
   expect(status.exists).toBe(true); expect(status.live).toBe(false);
