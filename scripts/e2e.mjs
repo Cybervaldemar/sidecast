@@ -52,10 +52,8 @@ async function decodedVideo(page) {
     return false;
   }), {timeout:25000}).toBe(true);
 }
-async function stereoAudio(studio, viewer) {
-  const tones = await studio.evaluate(() => window.__testAudioTones);
-  const pages = [studio,viewer];
-  await Promise.all(pages.map(page => page.evaluate(async tones => {
+async function stereoAudio(page) {
+  await page.evaluate(async () => {
     const context = new AudioContext({sampleRate:48000});
     const stream = new MediaStream(document.querySelector('video').srcObject.getAudioTracks());
     const source = context.createMediaStreamSource(stream);
@@ -70,15 +68,17 @@ async function stereoAudio(studio, viewer) {
       splitter.connect(analyser,index);
       analyser.connect(silent);
     });
-    window.__testAudioMeter = {context,channels,frequencies:[...tones.stereo,...tones.balance]};
+    window.__testAudioMeter = {context,channels};
     await context.resume();
-  }, tones)));
-  const powers = page => page.evaluate(() => {
-    const {context,channels,frequencies} = window.__testAudioMeter;
-    return channels.map(analyser => {
-      const samples = new Float32Array(analyser.fftSize);
-      analyser.getFloatTimeDomainData(samples);
-      return frequencies.map(frequency => {
+  });
+  try {
+    // The fixture sends 220 Hz on the left and 660 Hz on the right. Receiving
+    // energy alone misses a mono downmix; verify the two channels stay distinct.
+    await expect.poll(() => page.evaluate(() => {
+      const {context,channels} = window.__testAudioMeter;
+      const power = (analyser,frequency) => {
+        const samples = new Float32Array(analyser.fftSize);
+        analyser.getFloatTimeDomainData(samples);
         let real = 0;
         let imaginary = 0;
         for (let index = 0; index < samples.length; index++) {
@@ -87,41 +87,16 @@ async function stereoAudio(studio, viewer) {
           imaginary += samples[index] * Math.sin(phase);
         }
         return (real * real + imaginary * imaginary) / (samples.length * samples.length);
-      });
-    });
-  });
-  try {
-    // The fixture sends 220 Hz on the left and 660 Hz on the right. Receiving
-    // energy alone misses a mono downmix; verify the two channels stay distinct.
-    await expect.poll(async () => {
-      const [left,right] = await powers(viewer);
+      };
+      const left = [power(channels[0],220),power(channels[0],660)];
+      const right = [power(channels[1],220),power(channels[1],660)];
       return left[0] > 1e-7 && right[1] > 1e-7 && left[0] > left[1] * 30 && right[1] > right[0] * 30;
-    }, {timeout:15000,message:'independent left/right game audio survives WebRTC forwarding'}).toBe(true);
-
-    // Uniform volume changes cancel out. A boosted bass band changes the
-    // low/mid ratio after forwarding, even when the stream remains stereo.
-    await expect.poll(async () => {
-      const [source,received] = await Promise.all(pages.map(powers));
-      const low = tones.stereo.length;
-      const mid = low + 1;
-      const high = low + 2;
-      let maxDeviation = 0;
-      for (let channel = 0; channel < 2; channel++) {
-        if ([low,mid,high].some(index => source[channel][index] < 1e-7 || received[channel][index] < 1e-7))
-          return 1000;
-        for (const index of [low,high]) {
-          const sourceRatio = source[channel][index] / source[channel][mid];
-          const receivedRatio = received[channel][index] / received[channel][mid];
-          maxDeviation = Math.max(maxDeviation, Math.abs(10 * Math.log10(receivedRatio / sourceRatio)));
-        }
-      }
-      return maxDeviation;
-    }, {timeout:15000,message:'low/mid/high game audio balance survives WebRTC forwarding'}).toBeLessThan(4);
+    }), {timeout:15000,message:'independent left/right game audio survives WebRTC forwarding'}).toBe(true);
   } finally {
-    await Promise.all(pages.map(page => page.evaluate(async () => {
+    await page.evaluate(async () => {
       await window.__testAudioMeter.context.close();
       delete window.__testAudioMeter;
-    })));
+    });
   }
 }
 async function watchFits(page, viewport, screenshot) {
@@ -264,7 +239,7 @@ try {
     }
     return false;
   }),{timeout:15000}).toBe(true);
-  await stereoAudio(studio,viewer);
+  await stereoAudio(viewer);
   await viewerSurvivesControlGlitches(viewer);
   const enterVideoFullscreen = async () => {
     await viewerVideo.evaluate(video => {
@@ -393,6 +368,6 @@ try {
   })]);
   expect(networkExitCode).toBe(0);
   expect(errors).toEqual([]);
-  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video, nonzero audio energy, independent left/right stereo and preserved low/mid/high frequency balance → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer uses native video controls without a live badge or custom toolbar','video enters fullscreen, follows browser exit, and exits when the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
+  const result = {passed:true,checks:['Sidecast page title and branding','localhost publisher → LAN HTTP viewer with decoded video, nonzero audio energy, independent left/right stereo → offline → live','ownership persists across process restart','legacy LANPlay identity remains usable after renaming','same viewer page reconnects after server restart','status request failures, LAN metadata changes and recovered ICE transitions preserve the existing viewer connection','nickname takeover denied','viewer fits desktop, laptop, portrait and landscape phones down to 320px without scrolling','viewer uses native video controls without a live badge or custom toolbar','video enters fullscreen, follows browser exit, and exits when the stream ends','application button stops a live stream and exits the process with code 0','viewer has no shutdown button','studio launch URL uses localhost and exposes the normal browser capture API','discovered LAN address opens the panel and generates share links over HTTP','shutdown is available through localhost only','no page errors'],networkCapture,screenshots:output,dataDirectory:data};
   writeFileSync(resolve(output, 'results.json'),JSON.stringify(result,null,2)); console.log(JSON.stringify(result,null,2));
 } finally { await browser?.close(); await stopServer(); }

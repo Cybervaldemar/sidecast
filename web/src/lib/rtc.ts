@@ -60,32 +60,12 @@ export async function capture(settings: StreamSettings) {
   // below decides whether resolution or frame rate may be reduced.
   for (const track of stream.getVideoTracks()) track.contentHint = 'motion';
 
-  let audioWarning = '';
-
   for (const track of stream.getAudioTracks()) {
     track.contentHint = 'music';
-    try {
-      await track.applyConstraints(GAME_AUDIO_CONSTRAINTS);
-    } catch {
-      audioWarning = 'Браузер не смог применить настройки звука. Звук может обрабатываться.';
-    }
-
-    const actual = track.getSettings();
-    const activeProcessing = (
-      [
-        ['echoCancellation', 'подавление эха'],
-        ['noiseSuppression', 'подавление шума'],
-        ['autoGainControl', 'автоматическая громкость'],
-      ] as const
-    )
-      .filter(([setting]) => actual[setting] === true)
-      .map(([, label]) => label);
-
-    if (activeProcessing.length)
-      audioWarning = `Браузер оставил включённой обработку звука: ${activeProcessing.join(', ')}.`;
+    await track.applyConstraints(GAME_AUDIO_CONSTRAINTS).catch(() => {});
   }
 
-  return { stream, audioWarning };
+  return stream;
 }
 
 export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {

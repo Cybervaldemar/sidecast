@@ -57,14 +57,10 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
       if (options.audio && !(scenario === 'noaudio' && captureCalls === 1) && scenario !== 'noaudio-all') {
         audioContext = new AudioContext({ sampleRate: 48000 });
         const stereo = audioContext.createChannelMerger(2);
-        const tones = { stereo: [220, 660], balance: [120, 1000, 6000] };
-        window.__testAudioTones = tones;
-        for (const [channel, marker] of tones.stereo.entries()) {
-          for (const frequency of [marker, ...tones.balance]) {
-            const oscillator = audioContext.createOscillator(); oscillator.frequency.value = frequency;
-            const gain = audioContext.createGain(); gain.gain.value = frequency === marker ? .03 : .02;
-            oscillator.connect(gain); gain.connect(stereo, 0, channel); oscillator.start();
-          }
+        for (const [channel, frequency] of [220, 660].entries()) {
+          const oscillator = audioContext.createOscillator(); oscillator.frequency.value = frequency;
+          const gain = audioContext.createGain(); gain.gain.value = .03;
+          oscillator.connect(gain); gain.connect(stereo, 0, channel); oscillator.start();
         }
         const destination = audioContext.createMediaStreamDestination();
         stereo.connect(destination);

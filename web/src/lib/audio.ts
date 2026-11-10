@@ -1,6 +1,8 @@
-// Leave the captured source's channel layout and sample rate to the browser.
-// Request only the removal of processing intended for microphones.
+// System/game audio needs the full stereo signal, without microphone processing.
+// These are preferences: a mono source must still be capturable.
 export const GAME_AUDIO_CONSTRAINTS: MediaTrackConstraints = {
+  channelCount: { ideal: 2 },
+  sampleRate: { ideal: 48_000 },
   echoCancellation: false,
   noiseSuppression: false,
   autoGainControl: false,

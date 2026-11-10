@@ -186,11 +186,6 @@ export function Studio({
                   {publisher.error}
                 </p>
               )}
-              {publisher.audioWarning && (
-                <p className="error inline-error" role="alert">
-                  {publisher.audioWarning}
-                </p>
-              )}
             </section>
           </div>
           <aside className="side-column" aria-label="Панель управления эфиром">

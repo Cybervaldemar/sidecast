@@ -1,6 +1,6 @@
 {
   "name": "sidecast",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": true,
   "type": "module",
   "description": "Self-hosted streaming with permanent channels, React and Go",
