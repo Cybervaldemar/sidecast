@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { SlidersHorizontal, Volume2 } from 'lucide-react';
+import { AppWindow, Monitor, RefreshCw, SlidersHorizontal, Volume2 } from 'lucide-react';
 import type { StreamSettings as Settings } from '../types';
 import { nativeCapture, type NativeSource } from '../lib/native';
 
@@ -15,6 +15,7 @@ export function StreamSettings({
   const native = nativeCapture();
   const [sources, setSources] = useState<NativeSource[]>([]);
   const [sourceError, setSourceError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (!native) return;
@@ -35,6 +36,26 @@ export function StreamSettings({
     };
   }, []);
 
+  const refreshSources = async () => {
+    if (!native || refreshing) return;
+    setRefreshing(true);
+    const started = performance.now();
+
+    try {
+      const items = await native.Sources();
+      setSources(items);
+      if (!items.some((item) => item.id === value.sourceId))
+        onChange({ ...value, sourceId: items[0]?.id ?? '' });
+      setSourceError('');
+    } catch (error) {
+      setSourceError(error instanceof Error ? error.message : 'Не удалось обновить список');
+    } finally {
+      const remaining = Math.max(0, 650 - (performance.now() - started));
+      if (remaining) await new Promise<void>((resolve) => window.setTimeout(resolve, remaining));
+      setRefreshing(false);
+    }
+  };
+
   return (
     <section className="card settings-card">
       <div className="section-heading">
@@ -46,43 +67,50 @@ export function StreamSettings({
       <fieldset disabled={disabled}>
         {native && (
           <>
-            <label className="setting-label" htmlFor="native-source">
-              Источник видео
-            </label>
-            <select
-              id="native-source"
-              value={value.sourceId}
-              onChange={(e) => onChange({ ...value, sourceId: e.target.value })}
+            <div className="setting-label native-source-heading">
+              <span id="native-source-label">Источник видео</span>
+              <button
+                type="button"
+                className={`native-source-refresh ${refreshing ? 'refreshing' : ''}`}
+                aria-label={refreshing ? 'Обновляем список окон' : 'Обновить список окон'}
+                aria-busy={refreshing}
+                title="Обновить список окон"
+                disabled={refreshing}
+                onClick={() => void refreshSources()}
+              >
+                <RefreshCw size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <div
+              className="native-source-list"
+              role="radiogroup"
+              aria-labelledby="native-source-label"
             >
-              {!sources.length && <option value="">Источники не найдены</option>}
+              {!sources.length && <p className="native-source-empty">Источники не найдены</p>}
               {sources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
+                <label
+                  key={source.id}
+                  className={`native-source-item ${value.sourceId === source.id ? 'selected' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="native-source"
+                    value={source.id}
+                    checked={value.sourceId === source.id}
+                    onChange={() => onChange({ ...value, sourceId: source.id })}
+                  />
+                  {source.icon ? (
+                    <img src={source.icon} alt="" className="native-source-icon" />
+                  ) : source.id.startsWith('display:') ? (
+                    <Monitor size={23} className="native-source-icon" aria-hidden="true" />
+                  ) : (
+                    <AppWindow size={23} className="native-source-icon" aria-hidden="true" />
+                  )}
+                  <span className="native-source-name">{source.name}</span>
+                </label>
               ))}
-            </select>
+            </div>
             {sourceError && <p className="field-hint error">{sourceError}</p>}
-            <button
-              type="button"
-              className="button secondary"
-              onClick={() =>
-                void native
-                  .Sources()
-                  .then((items) => {
-                    setSources(items);
-                    if (!items.some((item) => item.id === value.sourceId))
-                      onChange({ ...value, sourceId: items[0]?.id ?? '' });
-                    setSourceError('');
-                  })
-                  .catch((error: unknown) =>
-                    setSourceError(
-                      error instanceof Error ? error.message : 'Не удалось обновить список',
-                    ),
-                  )
-              }
-            >
-              Обновить список окон
-            </button>
           </>
         )}
         {!native && (

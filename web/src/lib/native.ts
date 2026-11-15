@@ -3,6 +3,7 @@ export interface NativeSource {
   name: string;
   width: number;
   height: number;
+  icon?: string;
 }
 
 export interface NativeStatus {

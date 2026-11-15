@@ -206,6 +206,9 @@
 .settings-card {
   padding: 16px;
 }
+.settings-card fieldset {
+  min-width: 0;
+}
 .settings-card .section-heading {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
@@ -280,6 +283,104 @@
   border-color: #304254;
   min-height: 36px;
   padding: 8px 10px;
+}
+.native-source-list {
+  width: 100%;
+  min-width: 0;
+  max-height: 250px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid #304254;
+  border-radius: 9px;
+  background: #0d1722;
+}
+.native-source-heading {
+  justify-content: space-between;
+}
+.native-source-refresh {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: auto;
+  padding: 0;
+  flex: none;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #b6c7d8;
+}
+.native-source-refresh:hover {
+  background: #2a4055;
+  color: #f5f9ff;
+}
+.native-source-refresh.refreshing:disabled {
+  opacity: 1;
+  color: var(--lime);
+  cursor: progress;
+}
+.native-source-refresh.refreshing svg {
+  animation: source-refresh-spin 650ms linear infinite;
+}
+@keyframes source-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-source-refresh.refreshing svg {
+    animation: none;
+  }
+}
+.native-source-item {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  min-height: 43px;
+  padding: 7px 10px;
+  cursor: pointer;
+  color: #d8e5f0;
+  border-bottom: 1px solid #26394b;
+}
+.native-source-item:last-child {
+  border-bottom: 0;
+}
+.native-source-item:hover,
+.native-source-item.selected {
+  background: #1d3449;
+}
+.native-source-item:focus-within {
+  outline: 2px solid var(--lime);
+  outline-offset: -2px;
+}
+.native-source-item input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.native-source-icon {
+  width: 25px;
+  height: 25px;
+  flex: none;
+  object-fit: contain;
+  color: #92adc5;
+}
+.native-source-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.native-source-empty {
+  padding: 12px;
+  color: #90a4b9;
+  font-size: 11px;
 }
 .settings-help {
   margin-top: 12px;

@@ -52,6 +52,34 @@ func TestNativeDevicesLive(t *testing.T) {
 	}
 }
 
+func TestNativeWindowIconsLive(t *testing.T) {
+	if os.Getenv("SIDECAST_NATIVE_LIVE") != "1" {
+		t.Skip("set SIDECAST_NATIVE_LIVE=1")
+	}
+	controller := newCaptureController(nil, nil)
+	sources, err := controller.Sources()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var windows, icons int
+	for _, source := range sources {
+		if !strings.HasPrefix(source.ID, "window:") {
+			continue
+		}
+		windows++
+		if strings.HasPrefix(source.Icon, "data:image/png;base64,") {
+			icons++
+		}
+	}
+	if windows == 0 {
+		t.Skip("no capturable windows")
+	}
+	if icons == 0 {
+		t.Fatal("no application icons could be loaded")
+	}
+	t.Logf("icons loaded for %d of %d windows", icons, windows)
+}
+
 func TestNativeWindowStreamLive(t *testing.T) {
 	if os.Getenv("SIDECAST_NATIVE_LIVE") != "1" {
 		t.Skip("set SIDECAST_NATIVE_LIVE=1")
@@ -156,7 +184,9 @@ func TestHardwareH264EncodeLive(t *testing.T) {
 	var forced bool
 	for time.Now().Before(deadline) {
 		if outputs >= 30 && !forced {
-			if err := encoder.ForceKeyframe(); err == nil { forced = true }
+			if err := encoder.ForceKeyframe(); err == nil {
+				forced = true
+			}
 		}
 		frames, err := encoder.Poll(nv12, time.Now())
 		if err != nil {

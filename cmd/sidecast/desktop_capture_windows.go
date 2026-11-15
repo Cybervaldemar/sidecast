@@ -25,6 +25,7 @@ type captureSource struct {
 	Name   string `json:"name"`
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
+	Icon   string `json:"icon,omitempty"`
 }
 
 type captureStatus struct {
@@ -82,6 +83,7 @@ func (c *CaptureController) Sources() ([]captureSource, error) {
 	if err != nil {
 		return result, nil
 	}
+	icons := make(map[string]string)
 	for _, window := range windows {
 		if window.Title == "" || window.Minimized || window.Cloaked || window.Bounds.W <= 0 || window.Bounds.H <= 0 {
 			continue
@@ -90,7 +92,12 @@ func (c *CaptureController) Sources() ([]captureSource, error) {
 		if window.AppName != "" {
 			name += " · " + window.AppName
 		}
-		result = append(result, captureSource{ID: "window:" + strconv.FormatUint(window.ID, 10), Name: name, Width: window.Bounds.W, Height: window.Bounds.H})
+		icon, ok := icons[window.ExePath]
+		if !ok {
+			icon = sourceIcon(window.ExePath)
+			icons[window.ExePath] = icon
+		}
+		result = append(result, captureSource{ID: "window:" + strconv.FormatUint(window.ID, 10), Name: name, Width: window.Bounds.W, Height: window.Bounds.H, Icon: icon})
 	}
 	return result, nil
 }

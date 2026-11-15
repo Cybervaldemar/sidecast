@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { runGo } from './go.mjs';
 import { writeNotices } from './notices.mjs';
 import { cleanBuild } from './clean-build.mjs';
+import { buildWails } from './build-wails.mjs';
 const supportedTargets = [['windows', 'amd64'], ['linux', 'amd64']];
 const currentOS = process.platform === 'win32' ? 'windows' : process.platform;
 const currentArch = process.arch === 'x64' ? 'amd64' : process.arch;
@@ -20,8 +21,12 @@ for (const [os, arch] of targets) {
   mkdirSync(directory, { recursive: true });
   const path = `${directory}/sidecast-${os}-${arch}${os === 'windows' ? '.exe' : ''}`;
   console.log(`Building ${path}`);
-  const flags = `-s -w -X sidecast/internal/update.Version=${version}${os === 'windows' ? ' -H=windowsgui' : ''}`;
-  runGo(['build', '-trimpath', `-ldflags=${flags}`, '-o', path, './cmd/sidecast'], { GOOS: os, GOARCH: arch });
+  if (os === 'windows') {
+    buildWails(path, version);
+  } else {
+    const flags = `-s -w -X sidecast/internal/update.Version=${version}`;
+    runGo(['build', '-trimpath', `-ldflags=${flags}`, '-o', path, './cmd/sidecast'], { GOOS: os, GOARCH: arch });
+  }
   checksums.push(`${createHash('sha256').update(readFileSync(path)).digest('hex')}  ${path.slice(6)}`);
 }
 writeFileSync('build/SHA256SUMS',checksums.join('\n')+'\n');

@@ -78,7 +78,7 @@ export function Studio({
             <span className="status-dot" />
             {live ? 'В эфире' : publisher.phase === 'starting' ? 'Подключение' : 'Не в эфире'}
           </span>
-          {application.available && (
+          {application.available && !publisher.native && (
             <button
               className="button secondary shutdown-button"
               disabled={application.stopping || updating}

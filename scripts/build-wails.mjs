@@ -1,22 +1,24 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { runGo } from './go.mjs';
+import { pathToFileURL } from 'node:url';
 
-if (process.platform !== 'win32' || process.arch !== 'x64') {
-  throw new Error('The Wails desktop build currently targets Windows x64.');
+export function buildWails(output, version, extraEnv = {}) {
+  mkdirSync('build/windows-amd64', { recursive: true });
+  runGo([
+    'build',
+    '-trimpath',
+    '-tags',
+    'wails,desktop,production',
+    '-ldflags',
+    `-s -w -H=windowsgui -X sidecast/internal/update.Version=${version}`,
+    '-o',
+    output,
+    './cmd/sidecast',
+  ], { GOOS: 'windows', GOARCH: 'amd64', ...extraEnv });
+  console.log(`Built ${output}`);
 }
 
-const directory = 'build/windows-amd64';
-const output = `${directory}/sidecast-wails-windows-amd64.exe`;
-mkdirSync(directory, { recursive: true });
-runGo([
-  'build',
-  '-trimpath',
-  '-tags',
-  'wails,desktop,production',
-  '-ldflags',
-  '-s -w -H=windowsgui',
-  '-o',
-  output,
-  './cmd/sidecast',
-]);
-console.log(`Built ${output}`);
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const version = JSON.parse(readFileSync('package.json', 'utf8')).version;
+  buildWails('build/windows-amd64/sidecast-windows-amd64.exe', version);
+}
