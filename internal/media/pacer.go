@@ -17,7 +17,7 @@ const (
 	viewerQueueDelay   = 500 * time.Millisecond
 	pacingInterval     = 5 * time.Millisecond
 	// The aggregate transport budget includes headers, audio, repairs and bursts.
-	// This allowance is independent of the selectable video bitrate modes.
+	// The transport budget also includes headers, audio, repairs and bursts.
 	viewerMaxTransportBitrate = 200_000_000
 	viewerMaxPacingBitrate    = viewerMaxTransportBitrate * 3 / 2
 )
@@ -47,10 +47,26 @@ type viewerPacer struct {
 	inputBytes     int
 	inputWindow    time.Time
 	congestedSince time.Time
+	feedbackRate   int
 	started        bool
 	closed         bool
 	done           chan struct{}
 	failed         func()
+}
+
+func (p *viewerPacer) observeFeedback(rate int) {
+	p.mu.Lock()
+	if rate > 0 {
+		p.feedbackRate = rate
+	}
+	p.mu.Unlock()
+}
+
+func (p *viewerPacer) feedbackTarget() (int, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	congested := !p.congestedSince.IsZero() && time.Since(p.congestedSince) >= time.Second
+	return p.feedbackRate, p.started && !p.closed && congested && p.feedbackRate > 0
 }
 
 func newViewerPacer(failed func()) *viewerPacer {

@@ -1,6 +1,7 @@
 package desktop
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/json"
@@ -11,6 +12,17 @@ import (
 
 	"sidecast/internal/update"
 )
+
+type embeddedWindowKey struct{}
+
+// EmbeddedWindowHandler marks requests served by Wails' private asset server.
+// Only the Wails process may apply this wrapper; the public listener must use
+// the unwrapped handler.
+func EmbeddedWindowHandler(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), embeddedWindowKey{}, true)))
+	})
+}
 
 // WithControls exposes process controls only to a browser on this computer.
 // A fresh capability for each launch also protects against cross-origin POSTs.
@@ -90,6 +102,20 @@ func localRequest(r *http.Request) bool {
 	// A loopback connection from a reverse proxy is not a local browser.
 	for _, header := range []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Real-IP"} {
 		if r.Header.Get(header) != "" {
+			return false
+		}
+	}
+	if r.Context().Value(embeddedWindowKey{}) == true {
+		if !strings.EqualFold(r.Host, "wails.localhost") {
+			return false
+		}
+		if origin := r.Header.Get("Origin"); origin != "" && !strings.EqualFold(origin, "http://wails.localhost") {
+			return false
+		}
+		switch r.Header.Get("Sec-Fetch-Site") {
+		case "", "none", "same-origin":
+			return true
+		default:
 			return false
 		}
 	}

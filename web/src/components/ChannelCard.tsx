@@ -6,7 +6,11 @@ import type { Identity, ServerConfig } from '../types';
 export function shareOrigin(config: ServerConfig | null, address: string) {
   if (config?.publicUrl) return config.publicUrl;
 
-  const current = new URL(window.location.origin);
+  const current = new URL(
+    window.location.hostname === 'wails.localhost' && config?.localUrl
+      ? config.localUrl
+      : window.location.origin,
+  );
 
   if (
     address &&

@@ -94,18 +94,20 @@ func run() error {
 	}
 	hub := media.New(publisherAPI, webrtc.Configuration{ICEServers: iceServers}, *maxViewers, media.WithViewerSettings(settings))
 	defer hub.Close()
-	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, ICEServers: iceServers, MaxViewers: *maxViewers}, web.Assets())
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-	updater := update.New(cancel)
-	server := &http.Server{Addr: *listen, Handler: desktop.WithControls(app, cancel, updater), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	listener, err := net.Listen("tcp", *listen)
 	if err != nil {
 		return fmt.Errorf("start Sidecast: %w", err)
 	}
 	defer listener.Close()
 	secure := *tlsCert != ""
-	studio := desktop.LocalURL(listener.Addr().String(), secure) + "/studio"
+	localURL := desktop.LocalURL(listener.Addr().String(), secure)
+	studio := localURL + "/studio"
+	app := httpapi.New(store, hub, httpapi.Config{PublicURL: *publicURL, LocalURL: localURL, ICEServers: iceServers, MaxViewers: *maxViewers}, web.Assets())
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	updater := update.New(cancel)
+	handler := desktop.WithControls(app, cancel, updater)
+	server := &http.Server{Addr: *listen, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 20 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 * 1024}
 	shutdownDone := make(chan struct{})
 	go func() {
 		defer close(shutdownDone)
@@ -139,7 +141,7 @@ func run() error {
 			<-ctx.Done()
 		}
 	} else {
-		err = desktop.Run(ctx, studio, cancel, !update.Restarted(), func() error {
+		err = runDesktop(ctx, studio, cancel, !update.Restarted(), handler, store, hub, func() error {
 			return update.WaitAndSignalReady(ctx, studio)
 		})
 		cancel()

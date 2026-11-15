@@ -5,8 +5,10 @@ export interface Identity {
 
 export interface ServerConfig {
   publicUrl: string;
+  localUrl: string;
   iceServers: RTCIceServer[];
   maxViewers: number;
+  maxVideoBitrate: number;
   addresses: string[];
 }
 
@@ -19,10 +21,10 @@ export interface ChannelStatus {
 }
 
 export interface StreamSettings {
-  fps: number;
-  bitrate: number;
   videoPriority: 'resolution' | 'motion';
   audioSource: 'window' | 'system';
+  sourceId: string;
+  includeAudio: boolean;
 }
 
 export interface Negotiation {

@@ -93,6 +93,34 @@ func TestLocalHTTPSControls(t *testing.T) {
 	}
 }
 
+func TestEmbeddedWindowControls(t *testing.T) {
+	handler := WithControls(http.NotFoundHandler(), func() {})
+	run := func(wrapped bool, origin, forwarded string) string {
+		t.Helper()
+		r := httptest.NewRequest("GET", "http://wails.localhost/api/app", nil)
+		r.RemoteAddr = ""
+		r.Header.Set("Origin", origin)
+		r.Header.Set("X-Forwarded-For", forwarded)
+		w := httptest.NewRecorder()
+		if wrapped {
+			EmbeddedWindowHandler(handler).ServeHTTP(w, r)
+		} else {
+			handler.ServeHTTP(w, r)
+		}
+		var response struct{ ShutdownToken string }
+		if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		return response.ShutdownToken
+	}
+	if run(false, "", "") != "" || run(true, "https://attacker.example", "") != "" || run(true, "", "127.0.0.1") != "" {
+		t.Fatal("embedded window capability escaped its trusted origin")
+	}
+	if len(run(true, "http://wails.localhost", "")) < 26 {
+		t.Fatal("embedded window did not receive its control capability")
+	}
+}
+
 func TestProxiedControlsDenied(t *testing.T) {
 	for _, header := range []string{"Forwarded", "X-Forwarded-For", "X-Forwarded-Host", "X-Real-IP"} {
 		t.Run(header, func(t *testing.T) {

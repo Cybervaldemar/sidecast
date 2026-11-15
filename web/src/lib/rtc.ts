@@ -45,10 +45,12 @@ export async function capture(settings: StreamSettings) {
 
   const windowAudio = settings.audioSource === 'window';
   const options = {
-    video: { frameRate: { ideal: settings.fps, max: settings.fps }, displaySurface: 'window' },
+    // Ask for the display's full refresh rate. The sender can lower its actual
+    // frame rate when capture, encoding, or the network cannot keep up.
+    video: { frameRate: { ideal: 240 }, displaySurface: 'window' },
     // Let Chrome start the audio source with its own defaults. Apply the
     // game-audio preferences to the track only after capture succeeds.
-    audio: true,
+    audio: settings.includeAudio,
     systemAudio: windowAudio ? 'exclude' : 'include',
     windowAudio: windowAudio ? 'window' : 'system',
     ...(windowAudio ? { monitorTypeSurfaces: 'exclude' } : {}),
@@ -68,7 +70,7 @@ export async function capture(settings: StreamSettings) {
   return stream;
 }
 
-export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
+export async function tune(pc: RTCPeerConnection, settings: StreamSettings, videoBitrate: number) {
   for (const sender of pc.getSenders()) {
     const p = sender.getParameters();
 
@@ -79,10 +81,9 @@ export async function tune(pc: RTCPeerConnection, settings: StreamSettings) {
         settings.videoPriority === 'motion' ? 'maintain-framerate' : 'maintain-resolution';
 
     for (const e of p.encodings) {
-      e.maxBitrate = sender.track?.kind === 'video' ? settings.bitrate * 1_000_000 : AUDIO_BITRATE;
+      e.maxBitrate = sender.track?.kind === 'video' ? videoBitrate : AUDIO_BITRATE;
 
       if (sender.track?.kind === 'video') {
-        e.maxFramerate = settings.fps;
         e.scaleResolutionDownBy = 1;
       }
     }

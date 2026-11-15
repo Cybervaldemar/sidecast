@@ -225,6 +225,19 @@
 .setting-label:first-of-type {
   margin-top: 0;
 }
+.audio-checkbox {
+  cursor: pointer;
+  font-size: 12px;
+}
+.host-studio .audio-checkbox input[type='checkbox'] {
+  width: 17px;
+  height: 17px;
+  min-height: 17px;
+  padding: 0;
+  margin: 0;
+  flex: 0 0 17px;
+  accent-color: #a9c9e7;
+}
 .segmented {
   display: flex;
   padding: 3px;
