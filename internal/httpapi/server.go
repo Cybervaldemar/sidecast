@@ -17,10 +17,12 @@ import (
 )
 
 type Config struct {
-	PublicURL  string             `json:"publicUrl"`
-	ICEServers []webrtc.ICEServer `json:"iceServers"`
-	MaxViewers int                `json:"maxViewers"`
-	Addresses  []string           `json:"addresses"`
+	PublicURL       string             `json:"publicUrl"`
+	LocalURL        string             `json:"localUrl"`
+	ICEServers      []webrtc.ICEServer `json:"iceServers"`
+	MaxViewers      int                `json:"maxViewers"`
+	MaxVideoBitrate int                `json:"maxVideoBitrate"`
+	Addresses       []string           `json:"addresses"`
 }
 
 type Server struct {
@@ -32,6 +34,7 @@ type Server struct {
 }
 
 func New(store *channels.Store, hub *media.Hub, config Config, assets fs.FS) http.Handler {
+	config.MaxVideoBitrate = media.MaxVideoBitrate
 	s := &Server{Store: store, Hub: hub, Config: config, Assets: assets, negotiations: make(chan struct{}, 32)}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +49,7 @@ func New(store *channels.Store, hub *media.Hub, config Config, assets fs.FS) htt
 	mux.HandleFunc("PUT /api/channels/{nick}", s.claim)
 	mux.HandleFunc("POST /api/channels/{nick}/publish", s.publish)
 	mux.HandleFunc("DELETE /api/channels/{nick}/publish/{session}", s.stop)
+	mux.HandleFunc("GET /api/channels/{nick}/publish/{session}/target", s.targetBitrate)
 	mux.HandleFunc("POST /api/channels/{nick}/subscribe", s.subscribe)
 	mux.HandleFunc("DELETE /api/channels/{nick}/subscribe/{session}/{viewer}", s.leave)
 	mux.HandleFunc("/", s.static)
@@ -176,6 +180,17 @@ func (s *Server) stop(w http.ResponseWriter, r *http.Request) {
 	}
 	s.Hub.Stop(r.PathValue("nick"), r.PathValue("session"))
 	w.WriteHeader(204)
+}
+func (s *Server) targetBitrate(w http.ResponseWriter, r *http.Request) {
+	if !s.authorized(w, r) {
+		return
+	}
+	bitrate, err := s.Hub.TargetBitrate(r.PathValue("nick"), r.PathValue("session"))
+	if err != nil {
+		fail(w, 409, err.Error())
+		return
+	}
+	reply(w, 200, map[string]int{"bitrate": bitrate})
 }
 func (s *Server) subscribe(w http.ResponseWriter, r *http.Request) {
 	if !s.valid(w, r) || !s.slot(w) {

@@ -22,13 +22,23 @@ export function Studio({
   const [identity, setIdentity] = useState(loadIdentity);
   const [saveError, setSaveError] = useState('');
   const [settings, setSettings] = useState<Settings>({
-    fps: 60,
-    bitrate: 20,
     videoPriority: 'motion',
     audioSource: 'system',
+    sourceId: '',
+    includeAudio: true,
   });
   const publisher = usePublisher(identity, config);
-  const stats = usePeerStats(publisher.pc, true);
+  const peerStats = usePeerStats(publisher.pc, !publisher.native);
+  const stats =
+    publisher.native && publisher.nativeStatus?.sessionId
+      ? {
+          ...peerStats,
+          fps: publisher.nativeStatus.fps,
+          width: publisher.nativeStatus.width,
+          height: publisher.nativeStatus.height,
+          bitrate: publisher.nativeStatus.bitrate / 1_000_000,
+        }
+      : peerStats;
   const { reachable } = useChannelStatus(identity?.nickname ?? '');
 
   const updating = application.updatePhase !== 'idle';
@@ -68,7 +78,7 @@ export function Studio({
             <span className="status-dot" />
             {live ? 'В эфире' : publisher.phase === 'starting' ? 'Подключение' : 'Не в эфире'}
           </span>
-          {application.available && (
+          {application.available && !publisher.native && (
             <button
               className="button secondary shutdown-button"
               disabled={application.stopping || updating}
@@ -145,7 +155,14 @@ export function Studio({
         <div className="studio-grid">
           <div className="main-column">
             <section className="card preview-card">
-              <VideoStage stream={publisher.stream} preview live={live} />
+              <VideoStage
+                stream={publisher.stream}
+                preview
+                live={live}
+                subtitle={
+                  publisher.native ? 'Выберите монитор или окно в настройках эфира.' : undefined
+                }
+              />
               <StatsBar stats={stats} live={live} />
               <div className="broadcast-actions">
                 <div>
@@ -161,9 +178,11 @@ export function Studio({
                   </span>
                   {live && (
                     <p>
-                      {publisher.stream?.getAudioTracks().length
+                      {publisher.hasAudio
                         ? 'Видео и звук передаются'
                         : 'Видео передаётся · аудиодорожка отсутствует'}
+                      {publisher.nativeStatus?.codec &&
+                        ` · ${publisher.nativeStatus.codec === 'video/H264' ? 'аппаратный H.264' : 'VP8'}`}
                     </p>
                   )}
                 </div>

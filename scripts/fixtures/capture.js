@@ -25,7 +25,9 @@ if (navigator.mediaDevices && !location.pathname.startsWith('/watch/')) {
           pixels.fillRect(x, y, 16, 16);
         }
       }
-      const fps = options.video.frameRate.max;
+      // Keep synthetic E2E rendering affordable while preserving the requested
+      // capture constraints for assertions.
+      const fps = Math.min(60, options.video.frameRate?.max ?? options.video.frameRate?.ideal ?? 60);
       window.__testCapture = { width, height, fps, startedAt: performance.now(), framesDrawn: 0, lastDrawAt: 0 };
       let frame = 0;
       const draw = () => {

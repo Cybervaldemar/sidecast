@@ -62,8 +62,9 @@ export const claimChannel = (nickname: string, token?: string) =>
   api<Identity>(channelPath(nickname), { method: 'PUT' }, token);
 
 export function errorMessage(error: unknown): string {
+  if (typeof error === 'string') return error;
   if (error instanceof DOMException && error.name === 'NotAllowedError')
-    return 'Выбор экрана отменён или браузер не разрешил захват.';
+    return 'Выбор экрана отменён или приложению не разрешён захват.';
 
   if (error instanceof DOMException && error.message.includes('Could not start audio source'))
     return 'Браузер не смог запустить захват звука. Проверьте устройство вывода звука и повторите попытку. Для эфира без звука выключите передачу звука в диалоге браузера.';

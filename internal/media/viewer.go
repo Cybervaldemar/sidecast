@@ -69,6 +69,7 @@ func (v *viewerEstimator) WriteRTCP(packets []rtcp.Packet, attributes intercepto
 	stats := v.GetStats()
 	loss, _ := stats["averageLoss"].(float64)
 	v.pacer.observeCongestion(stats["usage"] == "overuse" || loss > 0.1)
+	v.pacer.observeFeedback(v.GetTargetBitrate())
 	return nil
 }
 

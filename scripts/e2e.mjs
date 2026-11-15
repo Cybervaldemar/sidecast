@@ -182,10 +182,7 @@ try {
   await expect(studio.getByRole('link', { name: 'Sidecast — главная', exact: true })).toBeVisible();
   await expect(studio.getByRole('heading',{name:'Студия',exact:true})).toBeVisible();
   await expect(studio.locator('#video-priority')).toHaveValue('motion');
-  await expect(studio.locator('#bitrate')).toHaveValue('20');
-  expect(await studio.locator('#bitrate option').evaluateAll(options => options.map(option => Number(option.value)))).toEqual([6,12,20,40]);
-  await studio.locator('#bitrate').selectOption('40');
-  await expect(studio.locator('#bitrate')).toHaveValue('40');
+  await expect(studio.locator('#bitrate')).toHaveCount(0);
   await expect(studio.getByRole('button',{name:'Со звуком',exact:true})).toHaveCount(0);
   await expect(studio.getByRole('button',{name:'Без звука',exact:true})).toHaveCount(0);
   await expect(studio.getByRole('button',{name:'Звук ПК',exact:true})).toHaveAttribute('aria-pressed','true');
@@ -213,7 +210,7 @@ try {
   await studio.getByRole('button',{name:'Начать трансляцию',exact:true}).click();
   await expect(studio.getByText('Вы в эфире',{exact:true})).toBeVisible({timeout:25000});
   expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).toMatchObject({
-    audio:true,systemAudio:'include',windowAudio:'system',
+    audio:true,systemAudio:'include',windowAudio:'system',video:{frameRate:{ideal:240}},
   });
   expect(await studio.evaluate(() => window.__testCaptureOptions.at(-1))).not.toHaveProperty('monitorTypeSurfaces');
   await expect.poll(() => studio.evaluate(() => {

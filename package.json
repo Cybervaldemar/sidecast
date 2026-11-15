@@ -14,6 +14,7 @@
     "format:check": "prettier --check web package.json tsconfig.json .prettierrc.json",
     "build": "tsc --noEmit && vite build --config web/vite.config.ts",
     "build:app": "npm run build && node scripts/release.mjs --current",
+    "build:wails": "npm run build && node scripts/build-wails.mjs",
     "build:all": "npm run build && node scripts/release.mjs",
     "build:clean": "node scripts/clean-build.mjs",
     "icons:windows": "node scripts/windows-icons.mjs",
